@@ -2,7 +2,7 @@
 
 namespace ECommerceAPI.Models
 {
-    public class User
+    public class Usuarios
     {
         public int Id { get; set; }
 

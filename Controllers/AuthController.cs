@@ -45,23 +45,36 @@ namespace ECommerceAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] Models.LoginRequest request)
         {
-            // Buscar en la base de datos el usuario que coincide con el email recibido
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
 
-            if (user == null)
-                return Unauthorized("Usuario no encontrado");
+                var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (!PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
-                return Unauthorized("Contraseña incorrecta");
+                if (user == null || !PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
+                    return Unauthorized(new { message = "Credenciales incorrectas" });
 
-            if (!user.IsActive)
-                return Unauthorized("Usuario inactivo");
+                if (!user.IsActive)
+                    return Unauthorized(new { message = "Usuario inactivo" });
 
-            // Generar el token JWT para el usuario autenticado
-            var token = GenerateJwtToken(user);
-
-            // Devolver el token al cliente
-            return Ok(new { token });
+                var token = GenerateJwtToken(user);
+                return Ok(new
+                {
+                    token,
+                    user = new
+                    {
+                        id = user.Id,
+                        username = user.Username,
+                        email = user.Email
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log del error
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
         }
 
 
@@ -69,7 +82,7 @@ namespace ECommerceAPI.Controllers
         /// Registra un nuevo usuario en el sistema.
         /// </summary>
         /// <param name="request">
-        /// Objeto <see cref="User"/> que contiene:
+        /// Objeto <see cref="Usuarios"/> que contiene:
         /// - Username (nombre de usuario)
         /// - Email (correo electrónico)
         /// - FullName (nombre completo)
@@ -85,20 +98,20 @@ namespace ECommerceAPI.Controllers
         /// La fecha de creación se almacena en formato UTC.
         /// </remarks>
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] User request)
+        public async Task<IActionResult> Register([FromBody] Usuarios request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             // Verificar si ya existe username o email
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+            if (await _context.Usuarios.AnyAsync(u => u.Email == request.Email))
                 return Conflict(new { message = "El usuario ya existe." });
 
 
             // Hashear la contraseña
             string hashedPassword = PasswordHasher.HashPassword(request.PasswordHash);
 
-            var user = new User
+            var user = new Usuarios
             {
                 Username = request.Username,
                 Email = request.Email,
@@ -110,7 +123,7 @@ namespace ECommerceAPI.Controllers
                 Id_Rol = request.Id_Rol
             };
 
-            _context.Users.Add(user);
+            _context.Usuarios.Add(user);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Usuario registrado correctamente" });
@@ -119,13 +132,29 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet("perfil")]
         [Authorize] //Esto hace que requiera un JWT válido
-        public IActionResult GetProfile()
+        public async Task<IActionResult> GetProfileAsync()
         {
-            return Ok(new
-            {
-                message = "Acceso concedido. Este es un recurso protegido.",
-                user = User.Identity?.Name
-            });
+            var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _context.Usuarios
+                .Where(u => u.Id == int.Parse(userId) && u.IsActive)
+                .Select(u => new {
+                    u.Id,
+                    u.Username,
+                    u.Email,
+                    u.Nombre,
+                    u.Apellido,
+                    u.CreatedAt
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+                return NotFound(new { message = "Usuario no encontrado" });
+
+            return Ok(user);
         }
 
 
@@ -134,14 +163,14 @@ namespace ECommerceAPI.Controllers
         /// </summary>
         /// <param name="user"></param>
         /// <returns></returns>
-        private string GenerateJwtToken(User user)
+        private string GenerateJwtToken(Usuarios user)
         {
             // Leer la sección de configuración JwtSettings desde appsettings.json
             var jwtSettings = _config.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"];
-            var issuer = jwtSettings["Issuer"];
-            var audience = jwtSettings["Audience"];
-            var expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiresInMinutes"]));
+
+            if (string.IsNullOrEmpty(secretKey))
+                throw new InvalidOperationException("JWT SecretKey no configurada");
 
             // Crear la clave simétrica usando el secreto para firmar el token
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
@@ -152,16 +181,22 @@ namespace ECommerceAPI.Controllers
             // Definir los claims que se incluyen dentro del token
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Name, user.Username)
+                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                    new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                    new Claim(JwtRegisteredClaimNames.Name, user.Username),
+                    new Claim("role", user.Id_Rol.ToString() ?? "user"),
+                    new Claim(JwtRegisteredClaimNames.Iat,
+                        new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
+
+            var expires = DateTime.UtcNow.AddMinutes(
+            Convert.ToDouble(jwtSettings["ExpiresInMinutes"] ?? "60"));
 
             // Crear el token JWT con todos los parámetros definidos
             var token = new JwtSecurityToken(
-                issuer,
-                audience,
-                claims,
+                issuer: jwtSettings["Issuer"],
+                audience: jwtSettings["Audience"],
+                claims: claims,
                 expires: expires,
                 signingCredentials: creds
             );

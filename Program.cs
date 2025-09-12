@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.EntityFrameworkCore.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,13 +54,14 @@ builder.Services.AddAuthentication(options =>
 
 #region Conexión
 // Obtiene la cadena de conexión desde el helper
-var connectionString = DbConnectionHelper.GetDefaultConnectionString(builder.Configuration);
-
-// Configura EF Core con PostgreSQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Configura EF Core con SQLServer
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseSqlServer(connectionString));
 
 var app = builder.Build();
+
+
 #endregion
 
 app.UseHttpsRedirection();
