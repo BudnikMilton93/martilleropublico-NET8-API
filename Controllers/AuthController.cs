@@ -1,11 +1,10 @@
-﻿using ECommerceAPI.Data;
+﻿using APITemplate.Data.Interefaces;
+using ECommerceAPI.Data;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -18,17 +17,19 @@ namespace ECommerceAPI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _config;
-        private readonly AppDbContext _context;
+        //private readonly AppDbContext _context;
+        private readonly IUsuarioRepository _usuarioRepository;
 
         /// <summary>
         /// Constructor que recibe inyección de dependencias para configuración y contexto de base de datos
         /// </summary>
         /// <param name="config"></param>
         /// <param name="context"></param>
-        public AuthController(IConfiguration config, AppDbContext context)
+        public AuthController(IConfiguration config, AppDbContext context, IUsuarioRepository usuarioRepository)
         {
             _config = config;
-            _context = context;
+            //_context = context;
+            _usuarioRepository = usuarioRepository; // Inyectamos el repositorio
         }
 
 
@@ -50,7 +51,9 @@ namespace ECommerceAPI.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
+                //var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
+                var user = await _usuarioRepository.GetByEmailAsync(request.Email);
+
 
                 if (user == null || !PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
                     return Unauthorized(new { message = "Credenciales incorrectas" });
@@ -82,7 +85,7 @@ namespace ECommerceAPI.Controllers
         /// Registra un nuevo usuario en el sistema.
         /// </summary>
         /// <param name="request">
-        /// Objeto <see cref="Usuarios"/> que contiene:
+        /// Objeto <see cref="USUARIOS"/> que contiene:
         /// - Username (nombre de usuario)
         /// - Email (correo electrónico)
         /// - FullName (nombre completo)
@@ -98,20 +101,23 @@ namespace ECommerceAPI.Controllers
         /// La fecha de creación se almacena en formato UTC.
         /// </remarks>
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] Usuarios request)
+        public async Task<IActionResult> Register([FromBody] USUARIOS request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             // Verificar si ya existe username o email
-            if (await _context.Usuarios.AnyAsync(u => u.Email == request.Email))
-                return Conflict(new { message = "El usuario ya existe." });
+            if (await _usuarioRepository.EmailExistsAsync(request.Email))
+                return Conflict(new { message = "Ya existe un usuario con este email." });
+
+            if (await _usuarioRepository.UsernameExistsAsync(request.Username))
+                return Conflict(new { message = "Ya existe un usuario con este username." });
 
 
             // Hashear la contraseña
             string hashedPassword = PasswordHasher.HashPassword(request.PasswordHash);
 
-            var user = new Usuarios
+            var user = new USUARIOS
             {
                 Username = request.Username,
                 Email = request.Email,
@@ -123,10 +129,15 @@ namespace ECommerceAPI.Controllers
                 Id_Rol = request.Id_Rol
             };
 
-            _context.Usuarios.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Usuario registrado correctamente" });
+            //_context.Usuarios.Add(user);
+            //await _context.SaveChangesAsync();
+            var createdUser = await _usuarioRepository.CreateAsync(user);
+            
+            return Ok(new
+            {
+                message = "Usuario registrado correctamente",
+                userId = createdUser.Id
+            });
         }
 
 
@@ -134,27 +145,36 @@ namespace ECommerceAPI.Controllers
         [Authorize] //Esto hace que requiera un JWT válido
         public async Task<IActionResult> GetProfileAsync()
         {
-            var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
+                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int userIdInt))
+                    return Unauthorized(new { message = "Token inválido" });
 
-            var user = await _context.Usuarios
-                .Where(u => u.Id == int.Parse(userId) && u.IsActive)
-                .Select(u => new {
-                    u.Id,
-                    u.Username,
-                    u.Email,
-                    u.Nombre,
-                    u.Apellido,
-                    u.CreatedAt
-                })
-                .FirstOrDefaultAsync();
+                // Usamos el método del repositorio
+                var user = await _usuarioRepository.GetByIdAsync(userIdInt);
 
-            if (user == null)
-                return NotFound(new { message = "Usuario no encontrado" });
+                if (user == null || !user.IsActive)
+                    return NotFound(new { message = "Usuario no encontrado" });
 
-            return Ok(user);
+                // Retornamos solo los datos necesarios (sin password)
+                return Ok(new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email,
+                    nombre = user.Nombre,
+                    apellido = user.Apellido,
+                    idRol = user.Id_Rol,
+                    createdAt = user.CreatedAt
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+            
         }
 
 
@@ -163,7 +183,7 @@ namespace ECommerceAPI.Controllers
         /// </summary>
         /// <param name="user"></param>
         /// <returns></returns>
-        private string GenerateJwtToken(Usuarios user)
+        private string GenerateJwtToken(USUARIOS user)
         {
             // Leer la sección de configuración JwtSettings desde appsettings.json
             var jwtSettings = _config.GetSection("JwtSettings");

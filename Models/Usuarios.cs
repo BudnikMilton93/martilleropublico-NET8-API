@@ -1,8 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ECommerceAPI.Models
 {
-    public class Usuarios
+    [Table("USUARIOS")]
+    public class USUARIOS
     {
         public int Id { get; set; }
 

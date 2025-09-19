@@ -10,6 +10,6 @@ namespace ECommerceAPI.Data
 
         }
 
-        public DbSet<Usuarios> Usuarios { get; set; }
+        public DbSet<USUARIOS> Usuarios { get; set; }
     }
 }
