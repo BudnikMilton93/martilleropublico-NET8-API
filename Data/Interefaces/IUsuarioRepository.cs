@@ -1,4 +1,4 @@
-﻿using ECommerceAPI.Models;
+﻿using APITemplate.Models;
 
 namespace APITemplate.Data.Interefaces
 {

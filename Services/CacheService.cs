@@ -1,7 +1,7 @@
 ﻿using StackExchange.Redis;
 using System.Text.Json;
 
-namespace ECommerceAPI.Services
+namespace APITemplate.Services
 {
 
     /// <summary>

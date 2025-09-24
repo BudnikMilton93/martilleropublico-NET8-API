@@ -1,7 +1,7 @@
-﻿using ECommerceAPI.Helpers;
+﻿using APITemplate.Helpers;
 using Xunit;
 
-namespace ECommerceAPI.Tests.Helpers
+namespace APITemplate.Tests.Helpers
 {
     public class PasswordHasherTests
     {

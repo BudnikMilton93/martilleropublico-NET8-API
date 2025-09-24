@@ -1,8 +1,8 @@
-﻿using ECommerceAPI.Services;
+﻿using APITemplate.Services;
 using Microsoft.AspNetCore.Mvc;
 
 
-namespace ECommerceAPI.Controllers
+namespace APITemplate.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

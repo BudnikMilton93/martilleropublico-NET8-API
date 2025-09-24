@@ -1,6 +1,6 @@
 ﻿using APITemplate.Data.Interefaces;
-using ECommerceAPI.Data;
-using ECommerceAPI.Models;
+using APITemplate.Data;
+using APITemplate.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace APITemplate.Data.Repositories

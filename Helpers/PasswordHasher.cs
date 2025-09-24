@@ -1,4 +1,4 @@
-﻿namespace ECommerceAPI.Helpers
+﻿namespace APITemplate.Helpers
 {
     public static class PasswordHasher
     {

@@ -1,7 +1,8 @@
+using APITemplate.Bussines.Services;
+using APITemplate.Data;
 using APITemplate.Data.Interefaces;
 using APITemplate.Data.Repositories;
-using ECommerceAPI.Data;
-using ECommerceAPI.Services;
+using APITemplate.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -54,14 +55,20 @@ builder.Services.AddAuthentication(options =>
 
 #endregion
 
-#region Conexión a base de datos
+#region Conexión a base de datos y repositorios
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
-
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IPropiedadesRepository, PropiedadesRepository>();
+#endregion
+
+#region Servicios
+
+builder.Services.AddScoped<PropiedadesService>();
+
 #endregion
 
 var app = builder.Build();

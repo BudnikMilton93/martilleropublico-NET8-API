@@ -1,7 +1,7 @@
 ﻿using APITemplate.Data.Interefaces;
-using ECommerceAPI.Data;
-using ECommerceAPI.Helpers;
-using ECommerceAPI.Models;
+using APITemplate.Data;
+using APITemplate.Helpers;
+using APITemplate.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,14 +10,13 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace ECommerceAPI.Controllers
+namespace APITemplate.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _config;
-        //private readonly AppDbContext _context;
         private readonly IUsuarioRepository _usuarioRepository;
 
         /// <summary>
@@ -28,7 +27,6 @@ namespace ECommerceAPI.Controllers
         public AuthController(IConfiguration config, AppDbContext context, IUsuarioRepository usuarioRepository)
         {
             _config = config;
-            //_context = context;
             _usuarioRepository = usuarioRepository; // Inyectamos el repositorio
         }
 
@@ -51,7 +49,6 @@ namespace ECommerceAPI.Controllers
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                //var user = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
                 var user = await _usuarioRepository.GetByEmailAsync(request.Email);
 
 
@@ -129,8 +126,6 @@ namespace ECommerceAPI.Controllers
                 Id_Rol = request.Id_Rol
             };
 
-            //_context.Usuarios.Add(user);
-            //await _context.SaveChangesAsync();
             var createdUser = await _usuarioRepository.CreateAsync(user);
             
             return Ok(new

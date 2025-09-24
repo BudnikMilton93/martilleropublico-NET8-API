@@ -1,4 +1,4 @@
-﻿namespace ECommerceAPI.Services
+﻿namespace APITemplate.Services
 {
     /// <summary>
     /// Define las operaciones básicas para interactuar con un sistema de caché,

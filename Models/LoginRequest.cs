@@ -1,4 +1,4 @@
-﻿namespace ECommerceAPI.Models
+﻿namespace APITemplate.Models
 {
     public class LoginRequest
     {
