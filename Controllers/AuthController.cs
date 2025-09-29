@@ -79,6 +79,47 @@ namespace APITemplate.Controllers
 
 
         /// <summary>
+        /// Devuelve el usuario logueado
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("perfil")]
+        [Authorize] //Esto hace que requiera un JWT válido
+        public async Task<IActionResult> GetProfileAsync()
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int userIdInt))
+                    return Unauthorized(new { message = "Token inválido" });
+
+                // Usamos el método del repositorio
+                var user = await _usuarioRepository.GetByIdAsync(userIdInt);
+
+                if (user == null || !user.IsActive)
+                    return NotFound(new { message = "Usuario no encontrado" });
+
+                // Retornamos solo los datos necesarios (sin password)
+                return Ok(new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email,
+                    nombre = user.Nombre,
+                    apellido = user.Apellido,
+                    idRol = user.Id_Rol,
+                    createdAt = user.CreatedAt
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+
+        }
+
+
+        /// <summary>
         /// Registra un nuevo usuario en el sistema.
         /// </summary>
         /// <param name="request">
@@ -133,43 +174,6 @@ namespace APITemplate.Controllers
                 message = "Usuario registrado correctamente",
                 userId = createdUser.Id
             });
-        }
-
-
-        [HttpGet("perfil")]
-        [Authorize] //Esto hace que requiera un JWT válido
-        public async Task<IActionResult> GetProfileAsync()
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int userIdInt))
-                    return Unauthorized(new { message = "Token inválido" });
-
-                // Usamos el método del repositorio
-                var user = await _usuarioRepository.GetByIdAsync(userIdInt);
-
-                if (user == null || !user.IsActive)
-                    return NotFound(new { message = "Usuario no encontrado" });
-
-                // Retornamos solo los datos necesarios (sin password)
-                return Ok(new
-                {
-                    id = user.Id,
-                    username = user.Username,
-                    email = user.Email,
-                    nombre = user.Nombre,
-                    apellido = user.Apellido,
-                    idRol = user.Id_Rol,
-                    createdAt = user.CreatedAt
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error interno del servidor" });
-            }
-            
         }
 
 

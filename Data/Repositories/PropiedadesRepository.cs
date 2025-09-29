@@ -14,15 +14,16 @@ namespace APITemplate.Data.Repositories
         {
         }
 
-        public Task<PROPIEDADES> GetPropiedadConDetallesAsync()
+        public Task<PROPIEDADES> _GetPropiedadConDetallesAsync()
         {
             throw new NotImplementedException();
         }
 
+
         /// <summary>
         /// Obtiene todas las propiedades usando SQL Raw
         /// </summary>
-        public async Task<DataTable> GetPropiedadesAsync()
+        public async Task<DataTable> _GetPropiedadesAsync()
         {
             var sql = @"
             SELECT 
@@ -33,6 +34,7 @@ namespace APITemplate.Data.Repositories
                 B.Provincia,
                 P.Id_barrio,
                 P.Titulo,
+                P.Subtitulo,
                 P.Descripcion,
                 P.Direccion,
                 P.Superficie_terreno,
@@ -41,9 +43,12 @@ namespace APITemplate.Data.Repositories
                 P.Habitaciones,
                 P.Sanitario,
                 P.Cochera,
-                P.EsDestacada
-            FROM PROPIEDADES AS P
+                P.EsDestacada,
+                CP.Nombre AS Tags
+            FROM
+                PROPIEDADES AS P
             INNER JOIN BARRIOS AS B ON P.Id_barrio = B.Id_barrio
+            INNER JOIN CARACTERISTICAS_PROPIEDAD AS CP ON P.Id_propiedad = CP.Id_propiedad
             ORDER BY P.Id_propiedad DESC";
 
             using var command = _context.Database.GetDbConnection().CreateCommand();

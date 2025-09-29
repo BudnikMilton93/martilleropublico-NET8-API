@@ -13,6 +13,21 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
 
+#region CORS
+//TODO: Consultar al chat acerca de esto en PRD
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy
+                .WithOrigins("http://localhost:4200") // <-- dirección de tu frontend
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
+#endregion
+
 #region Servicios básicos
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -88,4 +103,5 @@ app.UseAuthorization();
 app.MapControllers();
 #endregion
 
+app.UseCors("AllowFrontend");
 app.Run();

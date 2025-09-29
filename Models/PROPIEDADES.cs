@@ -20,6 +20,9 @@ namespace APITemplate.Models
         [MaxLength(200)]
         public required string Titulo { get; set; }
 
+        [MaxLength(200)]
+        public string? Subtitulo { get; set; }
+
         [MaxLength(300)]
         public string? Descripcion { get; set; }
 

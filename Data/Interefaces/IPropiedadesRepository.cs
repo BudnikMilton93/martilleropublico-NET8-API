@@ -5,7 +5,7 @@ namespace APITemplate.Data.Interefaces
 {
     public interface IPropiedadesRepository : IBaseRepository<PROPIEDADES>
     {
-        Task<PROPIEDADES> GetPropiedadConDetallesAsync();
-        Task<DataTable> GetPropiedadesAsync();
+        Task<PROPIEDADES> _GetPropiedadConDetallesAsync();
+        Task<DataTable> _GetPropiedadesAsync();
     }
 }
