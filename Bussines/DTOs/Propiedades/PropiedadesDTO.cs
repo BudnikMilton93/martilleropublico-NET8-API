@@ -15,6 +15,10 @@ namespace APITemplate.Bussines.DTOs.Propiedades
         public string Subtitulo { get; set; } = string.Empty;
         public string? Descripcion { get; set; }
         public string? Direccion { get; set; }
+        public bool EsDestacada { get; set; }
+
+
+        // Casa / Alquiler / Terreno
         public decimal? SuperficieTerreno { get; set; }
         public decimal? SuperficieConstruida { get; set; }
         public string SuperficieResumen { get; set; } = string.Empty; 
@@ -23,7 +27,17 @@ namespace APITemplate.Bussines.DTOs.Propiedades
         public int? Sanitarios { get; set; }
         public int? Cocheras { get; set; }
         public string AmbientesResumen { get; set; } = string.Empty; 
-        public bool EsDestacada { get; set; }
+
+
+        // Datos específicos de vehículos
+        public string? Marca { get; set; }
+        public string? Modelo { get; set; }
+        public int? Fabricacion { get; set; }
+        public int? Kilometraje { get; set; }
+        public string? Patente { get; set; }
+
+        // Alquiler
+        public string? ServiciosIncluidos { get; set; }
 
         public List<FotosPropiedadDTO> Fotos { get; set; } = new();
         public List <String> Tags { get; set; } = new();

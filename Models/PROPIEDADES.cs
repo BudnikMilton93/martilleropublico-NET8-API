@@ -62,7 +62,11 @@ namespace APITemplate.Models
 
         public bool EsDestacada { get; set; } = false;
 
-       
+
+        // Alquiler
+        [MaxLength(50)]
+        public string? Servicios_incluidos { get; set; }
+
         // Relaciones
         public virtual BARRIOS? Barrio { get; set; }
 

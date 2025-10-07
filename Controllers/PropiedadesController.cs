@@ -1,7 +1,10 @@
-﻿using APITemplate.Bussines.DTOs.Propiedades;
+﻿using APITemplate.Bussines.DTOs.Barrios;
+using APITemplate.Bussines.DTOs.Propiedades;
+using APITemplate.Bussines.DTOs.TiposPropiedad;
 using APITemplate.Bussines.Services;
 using APITemplate.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Numerics;
 
 
 namespace APITemplate.Controllers
@@ -28,14 +31,26 @@ namespace APITemplate.Controllers
         }
 
         /// <summary>
-        /// Devuelve una propiedad por Id
-        /// (deberías armar un método en el Service/Repository si lo necesitás)
+        /// Obtiene los tipos de propiedad
         /// </summary>
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<PropiedadesDTO>> Get(int id)
+        /// <returns></returns>
+        [HttpGet("obtenerTiposPropiedad")]
+        public async Task<ActionResult<IEnumerable<TiposPropiedadDTO>>> ObtenerTiposPropiedad()
         {
-            // Por ahora no lo tenés implementado, pero lo dejamos planteado
-            return NotFound("Método no implementado todavía");
+            var tipos = await _propiedadesService.GetTiposPropiedadAsync();
+            return Ok(tipos);
         }
+
+        /// <summary>
+        /// Obtiene las localidades existentes
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("obtenerLocalidades")]
+        public async Task<ActionResult<IEnumerable<LocalidadesDTO>>> ObtenerLocalidades()
+        {
+            var localidades = await _propiedadesService.GetLocalidadesAsync();
+            return Ok(localidades);
+        }
+
     }
 }

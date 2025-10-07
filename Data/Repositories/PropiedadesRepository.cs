@@ -14,11 +14,7 @@ namespace APITemplate.Data.Repositories
         {
         }
 
-        public Task<PROPIEDADES> _GetPropiedadConDetallesAsync()
-        {
-            throw new NotImplementedException();
-        }
-
+       
 
         /// <summary>
         /// Obtiene todas las propiedades usando SQL Raw
@@ -44,12 +40,66 @@ namespace APITemplate.Data.Repositories
                 P.Sanitario,
                 P.Cochera,
                 P.EsDestacada,
+                P.Marca,
+                P.Servicios_incluidos,
+                P.Modelo,
+                P.Fabricacion,
+                P.Kilometraje,
+                P.Patente,
                 CP.Nombre AS Tags
             FROM
                 PROPIEDADES AS P
             INNER JOIN BARRIOS AS B ON P.Id_barrio = B.Id_barrio
             INNER JOIN CARACTERISTICAS_PROPIEDAD AS CP ON P.Id_propiedad = CP.Id_propiedad
             ORDER BY P.Id_propiedad DESC";
+
+            using var command = _context.Database.GetDbConnection().CreateCommand();
+            command.CommandText = sql;
+
+            await _context.Database.OpenConnectionAsync();
+
+            using var reader = await command.ExecuteReaderAsync();
+            var dataTable = new DataTable();
+            dataTable.Load(reader);
+
+            return dataTable;
+        }
+
+        /// <summary>
+        /// Obtiene los tipos de propiedades usando SQL Raw
+        /// </summary>
+        public async Task<DataTable> _GetTiposPropiedadAsync()
+        {
+            var sql = @"
+            SELECT 
+                TipoId
+                ,Nombre
+            FROM
+                TIPOS_PROPIEDAD";
+
+            using var command = _context.Database.GetDbConnection().CreateCommand();
+            command.CommandText = sql;
+
+            await _context.Database.OpenConnectionAsync();
+
+            using var reader = await command.ExecuteReaderAsync();
+            var dataTable = new DataTable();
+            dataTable.Load(reader);
+
+            return dataTable;
+        }
+
+        public async Task<DataTable> _GetLocalidadesAsync()
+        {
+            var sql = @"
+            SELECT 
+                Id_barrio
+                ,Nombre
+                ,Ciudad
+                ,Provincia
+                ,Activo
+            FROM 
+                BARRIOS";
 
             using var command = _context.Database.GetDbConnection().CreateCommand();
             command.CommandText = sql;
