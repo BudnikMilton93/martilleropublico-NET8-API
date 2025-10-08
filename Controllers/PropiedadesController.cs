@@ -52,5 +52,11 @@ namespace APITemplate.Controllers
             return Ok(localidades);
         }
 
+        [HttpPost("guardarPropiedad")]
+        public async Task<IActionResult> GuardarPropiedad([FromForm] PropiedadesDTO propiedadNueva) 
+        {
+            var propiedad = await _propiedadesService.GuardarPropiedadAsync(propiedadNueva);
+            return BadRequest("Datos de la propiedad inválidos.");
+        }
     }
 }

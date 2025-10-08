@@ -7,6 +7,7 @@ namespace APITemplate.Bussines.DTOs.Propiedades
     {
         public int Id { get; set; }
         public int TipoId { get; set; }
+        public int IdBarrio { get; set; } 
         public string BarrioNombre { get; set; } = string.Empty;
         public string Ciudad { get; set; } = string.Empty;
         public string Provincia { get; set; } = string.Empty;
@@ -15,6 +16,7 @@ namespace APITemplate.Bussines.DTOs.Propiedades
         public string Subtitulo { get; set; } = string.Empty;
         public string? Descripcion { get; set; }
         public string? Direccion { get; set; }
+        public string? DireccionMaps { get; set; }
         public bool EsDestacada { get; set; }
 
 

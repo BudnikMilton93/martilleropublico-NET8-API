@@ -86,11 +86,21 @@ namespace APITemplate.Bussines.Services
             return dataTable.AsEnumerable().Select(MapearTipoPropiedad).ToList();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="propiedad"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public Task<IEnumerable<PropiedadesDTO>> GuardarPropiedadAsync(PropiedadesDTO propiedad)
+        {
+            throw new NotImplementedException();
+        }
         #endregion
 
 
         #region "Mapeado de datos"
-        
+
         /// <summary>
         /// Arma la entidad Popiedades en base a la tabla recibida.
         /// </summary>
@@ -131,8 +141,9 @@ namespace APITemplate.Bussines.Services
                 Subtitulo = row["Subtitulo"].ToString() ?? string.Empty,
                 Descripcion = row["Descripcion"]?.ToString(),
                 Direccion = row["Direccion"]?.ToString(),
-
+                DireccionMaps = string.Format("{0}, {1} - {2}", row["Direccion"]?.ToString(), ciudad, provincia),
                 // Ubicación
+                IdBarrio = Convert.ToInt32(row["Id_barrio"]),
                 BarrioNombre = barrio,
                 Ciudad = ciudad,
                 Provincia = provincia,

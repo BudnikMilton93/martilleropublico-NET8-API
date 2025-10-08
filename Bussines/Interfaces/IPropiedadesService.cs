@@ -9,5 +9,7 @@ namespace APITemplate.Bussines.Interfaces
         Task<IEnumerable<PropiedadesDTO>> GetPropiedadesAsync();
         Task<IEnumerable<TiposPropiedadDTO>> GetTiposPropiedadAsync();
         Task<IEnumerable<LocalidadesDTO>> GetLocalidadesAsync();
+        Task<IEnumerable<PropiedadesDTO>> GuardarPropiedadAsync(PropiedadesDTO propiedad);
+
     }
 }
