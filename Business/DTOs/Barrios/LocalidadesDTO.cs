@@ -1,6 +1,6 @@
 ﻿using APITemplate.Models;
 
-namespace APITemplate.Bussines.DTOs.Barrios
+namespace APITemplate.Business.DTOs.Barrios
 {
     public class LocalidadesDTO
     {

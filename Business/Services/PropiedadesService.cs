@@ -1,12 +1,10 @@
-﻿using APITemplate.Bussines.DTOs.Barrios;
-using APITemplate.Bussines.DTOs.Propiedades;
-using APITemplate.Bussines.DTOs.TiposPropiedad;
+﻿using APITemplate.Business.DTOs.Barrios;
+using APITemplate.Business.DTOs.Propiedades;
+using APITemplate.Business.DTOs.TiposPropiedad;
 using APITemplate.Bussines.Interfaces;
-using APITemplate.Data.Interefaces;
-using APITemplate.Data.Repositories;
+using APITemplate.Data.Interfaces;
 using APITemplate.Models;
 using System.Data;
-using System.Text.RegularExpressions;
 
 namespace APITemplate.Bussines.Services
 {

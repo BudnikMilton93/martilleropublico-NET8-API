@@ -1,4 +1,4 @@
-﻿namespace APITemplate.Bussines.DTOs.TiposPropiedad
+﻿namespace APITemplate.Business.DTOs.TiposPropiedad
 {
     public class TiposPropiedadDTO
     {

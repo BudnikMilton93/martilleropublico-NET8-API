@@ -1,6 +1,7 @@
+using APITemplate.Business.Services;
 using APITemplate.Bussines.Services;
 using APITemplate.Data;
-using APITemplate.Data.Interefaces;
+using APITemplate.Data.Interfaces;
 using APITemplate.Data.Repositories;
 using APITemplate.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -78,6 +79,7 @@ builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IPropiedadesRepository, PropiedadesRepository>();
+builder.Services.AddScoped<S3Service>();
 #endregion
 
 #region Servicios

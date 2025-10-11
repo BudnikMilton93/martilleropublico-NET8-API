@@ -1,4 +1,4 @@
-﻿using APITemplate.Data.Interefaces;
+﻿using APITemplate.Data.Interfaces;
 using APITemplate.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Data;

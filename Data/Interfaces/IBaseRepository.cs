@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace APITemplate.Data.Interefaces
+namespace APITemplate.Data.Interfaces
 {
     public interface IBaseRepository<T> where T : class
     {

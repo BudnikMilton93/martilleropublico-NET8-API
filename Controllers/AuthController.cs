@@ -1,5 +1,4 @@
-﻿using APITemplate.Data.Interefaces;
-using APITemplate.Data;
+﻿using APITemplate.Data;
 using APITemplate.Helpers;
 using APITemplate.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using APITemplate.Data.Interfaces;
 
 namespace APITemplate.Controllers
 {

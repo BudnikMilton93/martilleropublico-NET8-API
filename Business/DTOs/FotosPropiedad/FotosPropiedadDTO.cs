@@ -1,4 +1,4 @@
-﻿namespace APITemplate.Bussines.DTOs.FotosPropiedad
+﻿namespace APITemplate.Business.DTOs.FotosPropiedad
 {
     public class FotosPropiedadDTO
     {

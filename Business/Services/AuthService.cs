@@ -3,7 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace APITemplate.Services
+namespace APITemplate.Business.Services
 {
     /// <summary>
     /// Servicio responsable de la generación de tokens JWT para la autenticación y autorización de usuarios.

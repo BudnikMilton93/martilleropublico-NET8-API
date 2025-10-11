@@ -1,7 +1,7 @@
-﻿using APITemplate.Bussines.DTOs.FotosPropiedad;
+﻿using APITemplate.Business.DTOs.FotosPropiedad;
 using APITemplate.Models;
 
-namespace APITemplate.Bussines.DTOs.Propiedades
+namespace APITemplate.Business.DTOs.Propiedades
 {
     public class PropiedadesDTO
     {

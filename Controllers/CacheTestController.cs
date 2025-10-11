@@ -38,7 +38,7 @@ namespace APITemplate.Controllers
         public async Task<IActionResult> StoreInCache()
         {
             string key = "welcome_message";
-            string value = "¡Bienvenido a ECommerceAPI!";
+            string value = "¡Bienvenido a APITemplate!";
             bool stored = await _cacheService.SetAsync(key, value, TimeSpan.FromMinutes(1));
 
             return Ok(new { message = stored ? "Guardado en caché" : "No se pudo guardar" });

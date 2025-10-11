@@ -1,6 +1,6 @@
 ﻿using APITemplate.Models;
 
-namespace APITemplate.Data.Interefaces
+namespace APITemplate.Data.Interfaces
 {
     public interface IUsuarioRepository : IBaseRepository<USUARIOS>
     {

@@ -1,7 +1,8 @@
-﻿using APITemplate.Bussines.DTOs.Barrios;
-using APITemplate.Bussines.DTOs.Propiedades;
-using APITemplate.Bussines.DTOs.TiposPropiedad;
+﻿using APITemplate.Business.DTOs.Barrios;
+using APITemplate.Business.DTOs.Propiedades;
+using APITemplate.Business.DTOs.TiposPropiedad;
 using APITemplate.Bussines.Services;
+using APITemplate.Models;
 using APITemplate.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Numerics;
@@ -14,10 +15,12 @@ namespace APITemplate.Controllers
     public class PropiedadesController : ControllerBase
     {
         private readonly PropiedadesService _propiedadesService;
+        private readonly S3Service _S3Service;
 
-        public PropiedadesController(PropiedadesService propiedadesService)
+        public PropiedadesController(PropiedadesService propiedadesService, S3Service s3Service)
         {
             _propiedadesService = propiedadesService;
+            _S3Service = s3Service;
         }
 
         /// <summary>
@@ -53,10 +56,30 @@ namespace APITemplate.Controllers
         }
 
         [HttpPost("guardarPropiedad")]
-        public async Task<IActionResult> GuardarPropiedad([FromForm] PropiedadesDTO propiedadNueva) 
+        public async Task<IActionResult> GuardarPropiedad([FromForm] PropiedadesDTO propiedadNueva, [FromForm] string fotos, [FromForm] List<IFormFile> archivos)
         {
-            var propiedad = await _propiedadesService.GuardarPropiedadAsync(propiedadNueva);
-            return BadRequest("Datos de la propiedad inválidos.");
+            if (propiedadNueva == null)
+                return BadRequest("Datos de la propiedad inválidos.");
+            try
+            {
+                var propiedadGuardada = await _propiedadesService.GuardarPropiedadAsync(propiedadNueva);
+                return Ok(propiedadGuardada);
+            }
+            catch (Exception ex)
+            {
+                // Logueá el error si querés, o devolvelo para depurar
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+            }
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> ActualizarPropiedad(int id, [FromBody] PROPIEDADES prop)
+        {
+            if (id != prop.Id_propiedad)
+                return BadRequest("ID no coincide");
+
+            var actualizada = await _repo.UpdateAsync(prop);
+            return Ok(actualizada);
         }
     }
 }

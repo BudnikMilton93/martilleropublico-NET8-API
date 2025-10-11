@@ -25,7 +25,7 @@ namespace APITemplate.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("ECommerceAPI.Models.User", b =>
+            modelBuilder.Entity("APITemplate.Models.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

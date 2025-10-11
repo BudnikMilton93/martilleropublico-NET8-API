@@ -1,8 +1,8 @@
-﻿using APITemplate.Data.Interefaces;
-using APITemplate.Data;
+﻿using APITemplate.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using APITemplate.Data.Interfaces;
 
 namespace APITemplate.Data.Repositories
 {
