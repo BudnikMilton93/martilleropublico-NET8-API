@@ -10,7 +10,9 @@ namespace APITemplate.Models
         public int Id_foto { get; set; }
 
         [Required]
+        [ForeignKey(nameof(Propiedad))]
         public int Id_propiedad { get; set; }
+
 
         [Required]
         [MaxLength(255)]
@@ -31,6 +33,8 @@ namespace APITemplate.Models
         public DateTime Fecha_subida { get; set; } = DateTime.UtcNow;
 
         public bool Activo { get; set; } = true;
+        public PROPIEDADES? Propiedad { get; set; }
+
 
     }
 }

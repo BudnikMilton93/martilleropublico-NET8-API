@@ -1,4 +1,6 @@
+using APITemplate.Business.Interfaces;
 using APITemplate.Business.Services;
+using APITemplate.Bussines.Interfaces;
 using APITemplate.Bussines.Services;
 using APITemplate.Data;
 using APITemplate.Data.Interfaces;
@@ -10,9 +12,16 @@ using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
+
+#region Culture Info
+var cultureInfo = new CultureInfo("es-AR"); 
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+#endregion
 
 #region CORS
 //TODO: Consultar al chat acerca de esto en PRD
@@ -79,13 +88,13 @@ builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IPropiedadesRepository, PropiedadesRepository>();
-builder.Services.AddScoped<S3Service>();
+builder.Services.AddScoped<IFotosPropiedadRepository, FotosPropiedadRepository>();
 #endregion
 
 #region Servicios
-
-builder.Services.AddScoped<PropiedadesService>();
-
+builder.Services.AddScoped<IPropiedadesService, PropiedadesService>();
+builder.Services.AddScoped<IFotosPropiedadService, FotosPropiedadService>(); ;
+builder.Services.AddScoped<S3Service>();
 #endregion
 
 var app = builder.Build();

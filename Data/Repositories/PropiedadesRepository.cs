@@ -14,7 +14,6 @@ namespace APITemplate.Data.Repositories
         {
         }
 
-       
 
         /// <summary>
         /// Obtiene todas las propiedades usando SQL Raw
@@ -46,11 +45,10 @@ namespace APITemplate.Data.Repositories
                 P.Fabricacion,
                 P.Kilometraje,
                 P.Patente,
-                CP.Nombre AS Tags
+                P.Fecha_Alta
             FROM
                 PROPIEDADES AS P
             INNER JOIN BARRIOS AS B ON P.Id_barrio = B.Id_barrio
-            INNER JOIN CARACTERISTICAS_PROPIEDAD AS CP ON P.Id_propiedad = CP.Id_propiedad
             ORDER BY P.Id_propiedad DESC";
 
             using var command = _context.Database.GetDbConnection().CreateCommand();
@@ -64,6 +62,7 @@ namespace APITemplate.Data.Repositories
 
             return dataTable;
         }
+
 
         /// <summary>
         /// Obtiene los tipos de propiedades usando SQL Raw
@@ -89,6 +88,11 @@ namespace APITemplate.Data.Repositories
             return dataTable;
         }
 
+
+        /// <summary>
+        /// Obtiene las localidades disponibles.
+        /// </summary>
+        /// <returns></returns>
         public async Task<DataTable> _GetLocalidadesAsync()
         {
             var sql = @"
@@ -111,6 +115,13 @@ namespace APITemplate.Data.Repositories
             dataTable.Load(reader);
 
             return dataTable;
+        }
+
+        public async Task<PROPIEDADES?> CreateAsync(PROPIEDADES propiedad)
+        {
+            _context.Propiedades.Add(propiedad);
+            await _context.SaveChangesAsync();
+            return propiedad; // al guardar, EF Core rellena el Id generado automáticamente
         }
     }
 }

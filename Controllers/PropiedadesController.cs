@@ -1,7 +1,8 @@
 ﻿using APITemplate.Business.DTOs.Barrios;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
-using APITemplate.Bussines.Services;
+using APITemplate.Business.Interfaces;
+using APITemplate.Bussines.Interfaces;
 using APITemplate.Models;
 using APITemplate.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -14,13 +15,11 @@ namespace APITemplate.Controllers
     [ApiController]
     public class PropiedadesController : ControllerBase
     {
-        private readonly PropiedadesService _propiedadesService;
-        private readonly S3Service _S3Service;
+        private readonly IPropiedadesService _propiedadesService;
 
-        public PropiedadesController(PropiedadesService propiedadesService, S3Service s3Service)
+        public PropiedadesController(IPropiedadesService propiedadesService)
         {
             _propiedadesService = propiedadesService;
-            _S3Service = s3Service;
         }
 
         /// <summary>
@@ -62,7 +61,7 @@ namespace APITemplate.Controllers
                 return BadRequest("Datos de la propiedad inválidos.");
             try
             {
-                var propiedadGuardada = await _propiedadesService.GuardarPropiedadAsync(propiedadNueva);
+                var propiedadGuardada = await _propiedadesService.GuardarPropiedadAsync(propiedadNueva, fotos, archivos);
                 return Ok(propiedadGuardada);
             }
             catch (Exception ex)
@@ -70,16 +69,6 @@ namespace APITemplate.Controllers
                 // Logueá el error si querés, o devolvelo para depurar
                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> ActualizarPropiedad(int id, [FromBody] PROPIEDADES prop)
-        {
-            if (id != prop.Id_propiedad)
-                return BadRequest("ID no coincide");
-
-            var actualizada = await _repo.UpdateAsync(prop);
-            return Ok(actualizada);
         }
     }
 }

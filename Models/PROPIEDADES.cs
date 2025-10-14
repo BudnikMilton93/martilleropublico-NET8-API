@@ -67,11 +67,14 @@ namespace APITemplate.Models
         [MaxLength(50)]
         public string? Servicios_incluidos { get; set; }
 
+        public DateTime Fecha_Alta { get; set; } = DateTime.Now;
+
         // Relaciones
+        [ForeignKey(nameof(Id_barrio))]
         public virtual BARRIOS? Barrio { get; set; }
 
         public virtual ICollection<CARACTERISTICAS_PROPIEDAD>? Caracteristicas { get; set; }
 
-        public virtual ICollection<FOTOS_PROPIEDAD>? Fotos { get; set; }
+        public ICollection<FOTOS_PROPIEDAD> Fotos { get; set; } = new List<FOTOS_PROPIEDAD>();
     }
 }

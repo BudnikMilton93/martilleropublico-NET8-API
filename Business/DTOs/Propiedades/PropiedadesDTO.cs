@@ -18,11 +18,12 @@ namespace APITemplate.Business.DTOs.Propiedades
         public string? Direccion { get; set; }
         public string? DireccionMaps { get; set; }
         public bool EsDestacada { get; set; }
+        public DateTime FechaAlta { get; set; }
 
 
         // Casa / Alquiler / Terreno
-        public decimal? SuperficieTerreno { get; set; }
-        public decimal? SuperficieConstruida { get; set; }
+        public string? SuperficieTerreno { get; set; } = "0";
+        public string? SuperficieConstruida { get; set; } = "0";
         public string SuperficieResumen { get; set; } = string.Empty; 
         public int? Antiguedad { get; set; }
         public int? Habitaciones { get; set; }

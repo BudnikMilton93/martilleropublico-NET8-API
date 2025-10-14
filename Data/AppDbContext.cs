@@ -11,5 +11,6 @@ namespace APITemplate.Data
         }
 
         public DbSet<USUARIOS> Usuarios { get; set; }
+        public DbSet<PROPIEDADES> Propiedades { get; set; }
     }
 }

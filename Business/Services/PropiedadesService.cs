@@ -1,10 +1,13 @@
 ﻿using APITemplate.Business.DTOs.Barrios;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
+using APITemplate.Business.Interfaces;
 using APITemplate.Bussines.Interfaces;
 using APITemplate.Data.Interfaces;
 using APITemplate.Models;
+using Microsoft.AspNetCore.Mvc;
 using System.Data;
+using System.Globalization;
 
 namespace APITemplate.Bussines.Services
 {
@@ -12,16 +15,19 @@ namespace APITemplate.Bussines.Services
     {
 
         private readonly IPropiedadesRepository _propiedadesRepository;
+        private readonly IFotosPropiedadService _fotosPropiedadService;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="PropiedadesService"/> con el repositorio inyectado.
         /// </summary>
         /// <param name="propiedadesRepository">Repositorio de propiedades utilizado para acceder a la base de datos.</param>
-        public PropiedadesService(IPropiedadesRepository propiedadesRepository)
+        public PropiedadesService(IPropiedadesRepository propiedadesRepository, IFotosPropiedadService fotosPropiedadService)
         {
             _propiedadesRepository = propiedadesRepository;
+            _fotosPropiedadService = fotosPropiedadService;
         }
 
+        
         #region "Peticiones"
 
         /// <summary>
@@ -56,13 +62,7 @@ namespace APITemplate.Bussines.Services
                 // Tomar la primera fila para datos de propiedad (son iguales en todas)
                 var primeraFila = grupo.First();
 
-                // Recopilar todos los tags de todas las filas del grupo
-                var tags = grupo.Select(row => row["Tags"]?.ToString())
-                               .Where(tag => !string.IsNullOrEmpty(tag))
-                               .Distinct()
-                               .ToList();
-
-                var propiedadDto = MapearPropiedadesADto(primeraFila, tags);
+                var propiedadDto = MapearPropiedadesADto(primeraFila);
                 propiedadesDto.Add(propiedadDto);
             }
 
@@ -85,16 +85,25 @@ namespace APITemplate.Bussines.Services
         }
 
         /// <summary>
-        /// 
+        /// Recibe una propiedad para guardar
         /// </summary>
         /// <param name="propiedad"></param>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public Task<IEnumerable<PropiedadesDTO>> GuardarPropiedadAsync(PropiedadesDTO propiedad)
+        public async Task<bool> GuardarPropiedadAsync(PropiedadesDTO propiedad, [FromForm] string fotos, [FromForm] List<IFormFile> archivos)
         {
-            throw new NotImplementedException();
+            var propiedadNueva = MapearPropiedadAGuardar(propiedad);
+            var resultado = await _propiedadesRepository.CreateAsync(propiedadNueva);
+
+            if (resultado == null)
+                return false;
+
+            await _fotosPropiedadService.GuardarFotosPropiedadAsync(resultado.Id_propiedad, fotos, archivos);
+            
+             // Si CreateAsync devuelve la entidad insertada correctamente, entonces devolvés true
+             return true;
         }
-        #endregion
+        #endregion 
 
 
         #region "Mapeado de datos"
@@ -104,7 +113,7 @@ namespace APITemplate.Bussines.Services
         /// </summary>
         /// <param name="row"></param>
         /// <returns></returns>
-        private PropiedadesDTO MapearPropiedadesADto(DataRow row, List<string> tags)
+        private PropiedadesDTO MapearPropiedadesADto(DataRow row)
         {
             // Datos base de ubicación
             var barrio = row["BarrioNombre"].ToString() ?? string.Empty;
@@ -148,8 +157,8 @@ namespace APITemplate.Bussines.Services
                 BarrioCompleto = $"{barrio}, {ciudad}, {provincia}".Trim(',', ' '),
 
                 // Inmueble
-                SuperficieTerreno = superficieTerreno,
-                SuperficieConstruida = superficieConstruida,
+                SuperficieTerreno = superficieTerreno?.ToString("0.##", CultureInfo.InvariantCulture) ?? "0",
+                SuperficieConstruida = superficieConstruida?.ToString("0.##", CultureInfo.InvariantCulture) ?? "0",
                 SuperficieResumen = $"{(superficieConstruida ?? 0)}m² / {(superficieTerreno ?? 0)}m²",
                 Antiguedad = row["Antiguedad"] != DBNull.Value ? Convert.ToInt32(row["Antiguedad"]) : (int?)null,
                 Habitaciones = habitaciones,
@@ -168,7 +177,8 @@ namespace APITemplate.Bussines.Services
                 ServiciosIncluidos = serviciosIncluidos,
 
                 EsDestacada = esDestacada,
-                Tags = tags
+                FechaAlta = Convert.ToDateTime(row["Fecha_Alta"]),
+                //Tags = tags
             };
         }
 
@@ -221,6 +231,40 @@ namespace APITemplate.Bussines.Services
             return localidades;
         }
 
+
+        /// <summary>
+        /// Mapea un DTO con su Modelo para guardarlo y deriva las fotos.
+        /// </summary>
+        /// <param name="propiedadDTO"></param>
+        /// <returns></returns>
+        private static PROPIEDADES MapearPropiedadAGuardar(PropiedadesDTO propiedadDTO)
+        {
+            var entidad = new PROPIEDADES
+            {
+                Id_tipo = propiedadDTO.TipoId,
+                Id_barrio = propiedadDTO.IdBarrio,
+                Titulo = propiedadDTO.Titulo,
+                Subtitulo = propiedadDTO.Subtitulo,
+                Descripcion = propiedadDTO.Descripcion,
+                Direccion = propiedadDTO.DireccionMaps,
+                EsDestacada = propiedadDTO.EsDestacada,
+                Superficie_terreno = decimal.Parse(propiedadDTO.SuperficieTerreno.Replace(',', '.'), CultureInfo.InvariantCulture),
+                Superficie_construida = decimal.Parse(propiedadDTO.SuperficieConstruida.Replace(',', '.'), CultureInfo.InvariantCulture),
+                Antiguedad = propiedadDTO.Antiguedad,
+                Habitaciones = propiedadDTO.Habitaciones,
+                Sanitario = propiedadDTO.Sanitarios,
+                Cochera = propiedadDTO.Cocheras,
+                Marca = propiedadDTO.Marca,
+                Modelo = propiedadDTO.Modelo,
+                Fabricacion = propiedadDTO.Fabricacion,
+                Kilometraje = propiedadDTO.Kilometraje,
+                Patente = propiedadDTO.Patente,
+                Servicios_incluidos =  propiedadDTO.ServiciosIncluidos,
+                Fecha_Alta = DateTime.Now
+            };
+
+            return entidad;
+        }
         #endregion
 
     }

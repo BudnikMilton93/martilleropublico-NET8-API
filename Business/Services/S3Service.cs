@@ -20,23 +20,48 @@ namespace APITemplate.Bussines.Services
             _s3Client = new AmazonS3Client(awsAccessKey, awsSecretKey, region);
         }
 
-        public async Task<string> SubirFotosAsync(Stream fileStream, string fileName, string contentType)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fileStream"></param>
+        /// <param name="fileName"></param>
+        /// <param name="contentType"></param>
+        /// <returns></returns>
+        public async Task<string?> SubirFotosAsync(Stream fileStream, string fileName, string contentType)
         {
-            var fileTransferUtility = new TransferUtility(_s3Client);
-
-            var uploadRequest = new TransferUtilityUploadRequest
+            try
             {
-                InputStream = fileStream,
-                Key = fileName,
-                BucketName = _bucketName,
-                ContentType = contentType,
-                CannedACL = S3CannedACL.Private // Mantener privado para seguridad
-            };
+                var fileTransferUtility = new TransferUtility(_s3Client);
 
-            await fileTransferUtility.UploadAsync(uploadRequest);
+                var uploadRequest = new TransferUtilityUploadRequest
+                {
+                    InputStream = fileStream,
+                    Key = fileName,
+                    BucketName = _bucketName,
+                    ContentType = contentType,
+                    CannedACL = S3CannedACL.Private // mantener las fotos privadas (puedes usar CloudFront más adelante)
+                };
 
-            // Retornamos la URL pública si querés exponerla vía CloudFront más adelante
-            return $"https://{_bucketName}.s3.amazonaws.com/{fileName}";
+                await fileTransferUtility.UploadAsync(uploadRequest);
+
+                // Verificación rápida del objeto subido (opcional, asegura éxito real)
+                var metadata = await _s3Client.GetObjectMetadataAsync(_bucketName, fileName);
+                if (metadata.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                    return null;
+
+                // Retornamos la ruta final del archivo
+                return $"https://{_bucketName}.s3.amazonaws.com/{fileName}";
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Console.WriteLine($"Error AWS S3 al subir {fileName}: {ex.Message}");
+                return null; // garantiza que el servicio de fotos no guarde en DB
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al subir {fileName}: {ex.Message}");
+                return null;
+            }
         }
 
         public async Task<bool> ProbarConexionAsync()
