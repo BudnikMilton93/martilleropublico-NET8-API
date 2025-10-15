@@ -54,6 +54,13 @@ namespace APITemplate.Controllers
             return Ok(localidades);
         }
 
+        /// <summary>
+        /// Guarda una propiedad nueva con sus respectivas fotos
+        /// </summary>
+        /// <param name="propiedadNueva"></param>
+        /// <param name="fotos"></param>
+        /// <param name="archivos"></param>
+        /// <returns></returns>
         [HttpPost("guardarPropiedad")]
         public async Task<IActionResult> GuardarPropiedad([FromForm] PropiedadesDTO propiedadNueva, [FromForm] string fotos, [FromForm] List<IFormFile> archivos)
         {
@@ -62,6 +69,30 @@ namespace APITemplate.Controllers
             try
             {
                 var propiedadGuardada = await _propiedadesService.GuardarPropiedadAsync(propiedadNueva, fotos, archivos);
+                return Ok(propiedadGuardada);
+            }
+            catch (Exception ex)
+            {
+                // Logueá el error si querés, o devolvelo para depurar
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Actualiza una propiedad y sus fotos
+        /// </summary>
+        /// <param name="propiedadNueva"></param>
+        /// <param name="fotos"></param>
+        /// <param name="archivos"></param>
+        /// <returns></returns>
+        [HttpPost("actaulizarPropiedad")]
+        public async Task<IActionResult> ActualizarPropiedad([FromForm] PropiedadesDTO propiedadNueva, [FromForm] string fotos, [FromForm] List<IFormFile> archivos)
+        {
+            if (propiedadNueva == null)
+                return BadRequest("Datos de la propiedad inválidos.");
+            try
+            {
+                var propiedadGuardada = await _propiedadesService.ActualizarPropiedadAsync(propiedadNueva, fotos, archivos);
                 return Ok(propiedadGuardada);
             }
             catch (Exception ex)

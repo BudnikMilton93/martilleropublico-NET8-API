@@ -49,7 +49,10 @@ builder.Services.AddControllers();
 // Redis cache
 builder.Services.AddSingleton<ICacheService, CacheService>();
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")));
+{
+    var configuration = builder.Configuration.GetConnectionString("Redis");
+    return ConnectionMultiplexer.Connect(configuration);
+});
 #endregion
 
 #region JWT Authentication

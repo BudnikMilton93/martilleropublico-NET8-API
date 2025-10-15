@@ -2,6 +2,7 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer;
+using StackExchange.Redis;
 
 namespace APITemplate.Bussines.Services
 {
@@ -9,8 +10,9 @@ namespace APITemplate.Bussines.Services
     {
         private readonly string _bucketName;
         private readonly IAmazonS3 _s3Client;
+        private readonly IDatabase? _redisDb;
 
-        public S3Service(IConfiguration configuration)
+        public S3Service(IConfiguration configuration, IConnectionMultiplexer? redis = null)
         {
             var awsAccessKey = configuration["AWS:AccessKey"];
             var awsSecretKey = configuration["AWS:SecretKey"];
@@ -18,6 +20,9 @@ namespace APITemplate.Bussines.Services
             _bucketName = configuration["AWS:BucketName"];
 
             _s3Client = new AmazonS3Client(awsAccessKey, awsSecretKey, region);
+            
+            // Si Redis está disponible, obtenemos una instancia de base
+            _redisDb = redis?.GetDatabase();
         }
 
         /// <summary>
@@ -64,6 +69,135 @@ namespace APITemplate.Bussines.Services
             }
         }
 
+
+        /// <summary>
+        /// Obtiene la URL pública o pre-firmada de un archivo almacenado en Amazon S3,
+        /// utilizando Redis como caché para evitar consultas repetidas.
+        /// </summary>
+        /// <param name="key">
+        /// Nombre de archivo (clave) dentro del bucket de S3. 
+        /// Generalmente coincide con la ruta relativa del archivo subido.
+        /// </param>
+        /// <returns>
+        /// Devuelve la URL de acceso al archivo:
+        /// <list type="bullet">
+        /// <item>
+        /// <description>Si el bucket o el objeto son públicos, devuelve la URL pública directa.</description>
+        /// </item>
+        /// <item>
+        /// <description>Si el objeto es privado, genera y devuelve una URL pre-firmada válida por 1 hora.</description>
+        /// </item>
+        /// <item>
+        /// <description>Si el archivo no existe o ocurre un error, devuelve una cadena vacía.</description>
+        /// </item>
+        /// </list>
+        /// </returns>
+        /// <remarks>
+        /// Este método realiza una verificación inicial con <see cref="GetObjectMetadataAsync"/>.
+        /// Si el objeto no tiene acceso público, genera una URL pre-firmada usando <see cref="GetPreSignedUrlRequest"/>.
+        /// </remarks>
+        public async Task<string> ObtenerUrlPublicaAsync(string key)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(key))
+                    return string.Empty;
+
+                string cacheKey = $"s3:url:{key}";
+
+                // Intentar obtener desde Redis primero
+                if (_redisDb != null)
+                {
+                    var cachedUrl = await _redisDb.StringGetAsync(cacheKey);
+                    if (!cachedUrl.IsNullOrEmpty)
+                        return cachedUrl!;
+                }
+
+                // Verificar si el objeto existe
+                var metadataResponse = await _s3Client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+                {
+                    BucketName = _bucketName,
+                    Key = key
+                });
+
+                string url;
+
+                if (metadataResponse.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    // Si el bucket es público
+                    url = $"https://{_bucketName}.s3.amazonaws.com/{key}";
+                }
+                else
+                {
+                    // Si el objeto es privado, generamos una URL pre-firmada (1 hora)
+                    var preSignedRequest = new GetPreSignedUrlRequest
+                    {
+                        BucketName = _bucketName,
+                        Key = key,
+                        Expires = DateTime.UtcNow.AddHours(1)
+                    };
+                    url = _s3Client.GetPreSignedURL(preSignedRequest);
+                }
+
+                // Guardar en Redis con expiración (1 hora)
+                if (_redisDb != null && !string.IsNullOrEmpty(url))
+                {
+                    await _redisDb.StringSetAsync(cacheKey, url, TimeSpan.FromHours(1));
+                }
+
+                return url;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Console.WriteLine($"Error al obtener URL pública/pre-firmada de {key}: {ex.Message}");
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al obtener URL de S3: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        public async Task<bool> EliminarFotoAsync(string key)
+        {
+            try
+            {
+                await _s3Client.DeleteObjectAsync(new DeleteObjectRequest
+                {
+                    BucketName = _bucketName,
+                    Key = key
+                });
+
+                // También podrías eliminar del cache Redis
+                if (_redisDb != null)
+                    await _redisDb.KeyDeleteAsync($"s3:url:{key}");
+
+                return true;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Console.WriteLine($"Error AWS al eliminar {key}: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al eliminar {key}: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public async Task<bool> ProbarConexionAsync()
         {
             try

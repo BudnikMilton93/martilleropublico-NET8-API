@@ -1,7 +1,9 @@
 ﻿using APITemplate.Business.DTOs.Barrios;
+using APITemplate.Business.DTOs.FotosPropiedad;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
 using APITemplate.Business.Interfaces;
+using APITemplate.Business.Services;
 using APITemplate.Bussines.Interfaces;
 using APITemplate.Data.Interfaces;
 using APITemplate.Models;
@@ -16,15 +18,17 @@ namespace APITemplate.Bussines.Services
 
         private readonly IPropiedadesRepository _propiedadesRepository;
         private readonly IFotosPropiedadService _fotosPropiedadService;
+        private readonly S3Service _s3Service;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="PropiedadesService"/> con el repositorio inyectado.
         /// </summary>
         /// <param name="propiedadesRepository">Repositorio de propiedades utilizado para acceder a la base de datos.</param>
-        public PropiedadesService(IPropiedadesRepository propiedadesRepository, IFotosPropiedadService fotosPropiedadService)
+        public PropiedadesService(IPropiedadesRepository propiedadesRepository, IFotosPropiedadService fotosPropiedadService, S3Service s3Service)
         {
             _propiedadesRepository = propiedadesRepository;
             _fotosPropiedadService = fotosPropiedadService;
+            _s3Service = s3Service;
         }
 
         
@@ -41,11 +45,15 @@ namespace APITemplate.Bussines.Services
 
         }
 
+
         /// <summary>
         /// Obtiene todas las propiedades con lógica de negocio aplicada
         /// </summary>
         public async Task<IEnumerable<PropiedadesDTO>> GetPropiedadesAsync()
         {
+            var propiedadesDto = new List<PropiedadesDTO>();
+            var fotosPropiedad = new List<FotosPropiedadDTO>();
+
             //  Obtener datos crudos del repository
             var dataTable = await _propiedadesRepository._GetPropiedadesAsync();
 
@@ -54,20 +62,39 @@ namespace APITemplate.Bussines.Services
                 .GroupBy(row => Convert.ToInt32(row["Id_propiedad"]))
                 .ToList();
 
-            //  Aplicar lógica de negocio y transformar a DTO
-            var propiedadesDto = new List<PropiedadesDTO>();
+            fotosPropiedad = (List<FotosPropiedadDTO>)await _fotosPropiedadService.GetFotosPropiedadAsync();
 
+            // Recorrer cada grupo de propiedad
             foreach (var grupo in propiedadesAgrupadas)
             {
-                // Tomar la primera fila para datos de propiedad (son iguales en todas)
                 var primeraFila = grupo.First();
 
+                // Mapear datos de la propiedad
                 var propiedadDto = MapearPropiedadesADto(primeraFila);
+
+                // Filtrar las fotos que pertenecen a esta propiedad
+                var fotos = fotosPropiedad.FindAll(f => f.IdPropiedad == propiedadDto.Id);
+
+                // Obtener todas las URLs públicas en paralelo
+                var tareas = fotosPropiedad.Select(f => _s3Service.ObtenerUrlPublicaAsync(f.RutaArchivo)).ToList();
+                var urls = await Task.WhenAll(tareas);
+
+                // Asignar las URLs obtenidas a cada foto
+                for (int i = 0; i < fotos.Count; i++)
+                {
+                    fotos[i].RutaArchivo = urls[i];
+                }
+
+                // Asignar fotos a la propiedad
+                propiedadDto.Fotos = fotos;
+
+                // Agregar la propiedad completa a la lista final
                 propiedadesDto.Add(propiedadDto);
             }
 
             return propiedadesDto;
         }
+
 
         /// <summary>
         /// Obtiene los Tipos de Propiedades existentes.
@@ -83,6 +110,7 @@ namespace APITemplate.Bussines.Services
 
             return dataTable.AsEnumerable().Select(MapearTipoPropiedad).ToList();
         }
+
 
         /// <summary>
         /// Recibe una propiedad para guardar
@@ -102,6 +130,35 @@ namespace APITemplate.Bussines.Services
             
              // Si CreateAsync devuelve la entidad insertada correctamente, entonces devolvés true
              return true;
+        }
+
+
+        /// <summary>
+        /// Actualiza una propiedad existente en la base de datos y sus fotos asociadas.
+        /// </summary>
+        /// <param name="propiedadDto">DTO con los datos actualizados de la propiedad.</param>
+        /// <param name="fotos">JSON con las fotos (descripciones, orden, principal).</param>
+        /// <param name="archivos">Archivos nuevos a subir a S3 (opcional).</param>
+        /// <returns>True si se actualizó correctamente, false si la propiedad no existe.</returns>
+        public async Task<bool> ActualizarPropiedadAsync(PropiedadesDTO propiedadDto, [FromForm] string fotos, [FromForm] List<IFormFile>? archivos = null)
+        {
+            // Obtener la entidad existente
+            var propiedadExistente = await _propiedadesRepository.GetByIdAsync(propiedadDto.Id);
+
+            var propiedadMapeada = MapearPropiedadActualizada(propiedadDto, propiedadExistente);
+
+            // Guardar cambios en la base
+            var actualizado = await _propiedadesRepository.UpdateAsync(propiedadMapeada);
+            if (actualizado == null)
+                return false;
+
+            // Actualizar fotos si vienen
+            if (!string.IsNullOrEmpty(fotos) || (archivos != null && archivos.Count > 0))
+            {
+                await _fotosPropiedadService.ActualizarFotosPropiedadAsync(propiedadDto.Id, fotos, archivos);
+            }
+
+            return true;
         }
         #endregion 
 
@@ -264,6 +321,39 @@ namespace APITemplate.Bussines.Services
             };
 
             return entidad;
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="propiedadDto"></param>
+        /// <param name="propiedadExistente"></param>
+        /// <returns></returns>
+        private PROPIEDADES MapearPropiedadActualizada(PropiedadesDTO propiedadDto, PROPIEDADES propiedadExistente)
+        {
+            // Actualizar campos
+            propiedadExistente.Id_tipo = propiedadDto.TipoId;
+            propiedadExistente.Id_barrio = propiedadDto.IdBarrio;
+            propiedadExistente.Titulo = propiedadDto.Titulo;
+            propiedadExistente.Subtitulo = propiedadDto.Subtitulo;
+            propiedadExistente.Descripcion = propiedadDto.Descripcion;
+            propiedadExistente.Direccion = propiedadDto.Direccion;
+            propiedadExistente.EsDestacada = propiedadDto.EsDestacada;
+            propiedadExistente.Superficie_terreno = decimal.Parse(propiedadDto.SuperficieTerreno.Replace(',', '.'), CultureInfo.InvariantCulture);
+            propiedadExistente.Superficie_construida = decimal.Parse(propiedadDto.SuperficieConstruida.Replace(',', '.'), CultureInfo.InvariantCulture);
+            propiedadExistente.Antiguedad = propiedadDto.Antiguedad;
+            propiedadExistente.Habitaciones = propiedadDto.Habitaciones;
+            propiedadExistente.Sanitario = propiedadDto.Sanitarios;
+            propiedadExistente.Cochera = propiedadDto.Cocheras;
+            propiedadExistente.Marca = propiedadDto.Marca;
+            propiedadExistente.Modelo = propiedadDto.Modelo;
+            propiedadExistente.Fabricacion = propiedadDto.Fabricacion;
+            propiedadExistente.Kilometraje = propiedadDto.Kilometraje;
+            propiedadExistente.Patente = propiedadDto.Patente;
+            propiedadExistente.Servicios_incluidos = propiedadDto.ServiciosIncluidos;
+
+            return propiedadExistente;
         }
         #endregion
 

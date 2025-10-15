@@ -117,6 +117,12 @@ namespace APITemplate.Data.Repositories
             return dataTable;
         }
 
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="propiedad"></param>
+        /// <returns></returns>
         public async Task<PROPIEDADES?> CreateAsync(PROPIEDADES propiedad)
         {
             _context.Propiedades.Add(propiedad);

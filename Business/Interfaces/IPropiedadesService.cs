@@ -12,6 +12,6 @@ namespace APITemplate.Bussines.Interfaces
         Task<IEnumerable<TiposPropiedadDTO>> GetTiposPropiedadAsync();
         Task<IEnumerable<LocalidadesDTO>> GetLocalidadesAsync();
         Task<bool> GuardarPropiedadAsync(PropiedadesDTO propiedad, [FromForm] string fotos, [FromForm] List<IFormFile> archivos);
-
+        Task<bool> ActualizarPropiedadAsync(PropiedadesDTO propiedadDto, [FromForm] string fotos, [FromForm] List<IFormFile>? archivos = null);
     }
 }
