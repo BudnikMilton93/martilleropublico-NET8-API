@@ -85,7 +85,7 @@ namespace APITemplate.Controllers
         /// <param name="fotos"></param>
         /// <param name="archivos"></param>
         /// <returns></returns>
-        [HttpPost("actaulizarPropiedad")]
+        [HttpPost("actualizarPropiedad")]
         public async Task<IActionResult> ActualizarPropiedad([FromForm] PropiedadesDTO propiedadNueva, [FromForm] string fotos, [FromForm] List<IFormFile> archivos)
         {
             if (propiedadNueva == null)

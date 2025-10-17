@@ -98,48 +98,36 @@ namespace APITemplate.Bussines.Services
         /// </remarks>
         public async Task<string> ObtenerUrlPublicaAsync(string key)
         {
+            if (string.IsNullOrEmpty(key))
+                return string.Empty;
+
+            string cacheKey = $"s3:url:{key}";
+            string cachedUrl = null;
+
             try
             {
-                if (string.IsNullOrEmpty(key))
-                    return string.Empty;
-
-                string cacheKey = $"s3:url:{key}";
-
                 // Intentar obtener desde Redis primero
                 if (_redisDb != null)
                 {
-                    var cachedUrl = await _redisDb.StringGetAsync(cacheKey);
-                    if (!cachedUrl.IsNullOrEmpty)
-                        return cachedUrl!;
+                    await _redisDb.KeyDeleteAsync(cacheKey);
+                    cachedUrl = await _redisDb.StringGetAsync(cacheKey);
+                    if (!string.IsNullOrEmpty(cachedUrl))
+                    {
+                        return cachedUrl;
+                    }
                 }
 
-                // Verificar si el objeto existe
-                var metadataResponse = await _s3Client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+                // Generar URL pre-firmada (siempre, porque el bucket es privado)
+                var preSignedRequest = new GetPreSignedUrlRequest
                 {
                     BucketName = _bucketName,
-                    Key = key
-                });
+                    Key = key,
+                    Expires = DateTime.UtcNow.AddHours(1)
+                };
 
-                string url;
+                string url = _s3Client.GetPreSignedURL(preSignedRequest);
 
-                if (metadataResponse.HttpStatusCode == System.Net.HttpStatusCode.OK)
-                {
-                    // Si el bucket es público
-                    url = $"https://{_bucketName}.s3.amazonaws.com/{key}";
-                }
-                else
-                {
-                    // Si el objeto es privado, generamos una URL pre-firmada (1 hora)
-                    var preSignedRequest = new GetPreSignedUrlRequest
-                    {
-                        BucketName = _bucketName,
-                        Key = key,
-                        Expires = DateTime.UtcNow.AddHours(1)
-                    };
-                    url = _s3Client.GetPreSignedURL(preSignedRequest);
-                }
-
-                // Guardar en Redis con expiración (1 hora)
+                // Guardar en Redis con expiración de 1 hora
                 if (_redisDb != null && !string.IsNullOrEmpty(url))
                 {
                     await _redisDb.StringSetAsync(cacheKey, url, TimeSpan.FromHours(1));
@@ -149,12 +137,12 @@ namespace APITemplate.Bussines.Services
             }
             catch (AmazonS3Exception ex)
             {
-                Console.WriteLine($"Error al obtener URL pública/pre-firmada de {key}: {ex.Message}");
+                Console.WriteLine($"Error al generar URL pre-firmada de {key}: {ex.Message}");
                 return string.Empty;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error general al obtener URL de S3: {ex.Message}");
+                Console.WriteLine($"Error general al generar URL de S3 para {key}: {ex.Message}");
                 return string.Empty;
             }
         }

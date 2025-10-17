@@ -7,6 +7,7 @@ using APITemplate.Data.Repositories;
 using APITemplate.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Text.Json;
 
 namespace APITemplate.Business.Services
 {
@@ -123,8 +124,9 @@ namespace APITemplate.Business.Services
 
                 // Parsear el JSON recibido desde el front
                 var fotosRecibidas = string.IsNullOrEmpty(fotosJson)
-                    ? new List<FotosPropiedadDTO>()
-                    : System.Text.Json.JsonSerializer.Deserialize<List<FotosPropiedadDTO>>(fotosJson)!;
+                                    ? new List<FotosPropiedadDTO>()
+                                    : JsonSerializer.Deserialize<List<FotosPropiedadDTO>>(fotosJson,
+                                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
                 // Detectar fotos eliminadas
                 var idsRecibidos = fotosRecibidas.Where(f => f.Id > 0).Select(f => f.Id).ToList();

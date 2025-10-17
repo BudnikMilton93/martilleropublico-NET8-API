@@ -75,8 +75,13 @@ namespace APITemplate.Bussines.Services
                 // Filtrar las fotos que pertenecen a esta propiedad
                 var fotos = fotosPropiedad.FindAll(f => f.IdPropiedad == propiedadDto.Id);
 
-                // Obtener todas las URLs públicas en paralelo
-                var tareas = fotosPropiedad.Select(f => _s3Service.ObtenerUrlPublicaAsync(f.RutaArchivo)).ToList();
+                // Obtener todas las URLs públicas en paralelo SOLO para esas fotos
+                var tareas = fotos.Select(f =>
+                {
+                    // Si f.RutaArchivo viene con URL completa, extraemos la key
+                    string key = f.RutaArchivo.Replace("https://zm-propiedades-fotos.s3.amazonaws.com/", "");
+                    return _s3Service.ObtenerUrlPublicaAsync(key);
+                }).ToList();
                 var urls = await Task.WhenAll(tareas);
 
                 // Asignar las URLs obtenidas a cada foto
@@ -338,7 +343,7 @@ namespace APITemplate.Bussines.Services
             propiedadExistente.Titulo = propiedadDto.Titulo;
             propiedadExistente.Subtitulo = propiedadDto.Subtitulo;
             propiedadExistente.Descripcion = propiedadDto.Descripcion;
-            propiedadExistente.Direccion = propiedadDto.Direccion;
+            propiedadExistente.Direccion = propiedadDto.DireccionMaps;
             propiedadExistente.EsDestacada = propiedadDto.EsDestacada;
             propiedadExistente.Superficie_terreno = decimal.Parse(propiedadDto.SuperficieTerreno.Replace(',', '.'), CultureInfo.InvariantCulture);
             propiedadExistente.Superficie_construida = decimal.Parse(propiedadDto.SuperficieConstruida.Replace(',', '.'), CultureInfo.InvariantCulture);
