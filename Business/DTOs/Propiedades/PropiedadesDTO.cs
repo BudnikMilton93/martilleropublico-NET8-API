@@ -38,9 +38,11 @@ namespace APITemplate.Business.DTOs.Propiedades
         public int? Fabricacion { get; set; }
         public int? Kilometraje { get; set; }
         public string? Patente { get; set; }
-
+        public string VehiculoResumen { get; set; } = string.Empty;
+        
         // Alquiler
         public string? ServiciosIncluidos { get; set; }
+        public string? AlquilerResumen { get; set; }
 
         public List<FotosPropiedadDTO> Fotos { get; set; } = new();
         public List <String> Tags { get; set; } = new();

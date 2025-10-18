@@ -33,6 +33,8 @@ namespace APITemplate.Models
         public DateTime Fecha_subida { get; set; } = DateTime.UtcNow;
 
         public bool Activo { get; set; } = true;
+        
+        [ForeignKey(nameof(Id_propiedad))]
         public PROPIEDADES? Propiedad { get; set; }
 
 

@@ -8,6 +8,7 @@ namespace APITemplate.Data.Interfaces
         Task<DataTable> _GetPropiedadesAsync();
         Task<DataTable> _GetTiposPropiedadAsync();
         Task<DataTable> _GetLocalidadesAsync();
+        Task<bool> DeletePropiedadConFotosAsync(int id);
 
     }
 }

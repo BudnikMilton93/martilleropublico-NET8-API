@@ -44,12 +44,12 @@ namespace APITemplate.Bussines.Services
                     Key = fileName,
                     BucketName = _bucketName,
                     ContentType = contentType,
-                    CannedACL = S3CannedACL.Private // mantener las fotos privadas (puedes usar CloudFront más adelante)
+                    CannedACL = S3CannedACL.Private // fotos privadas
                 };
 
                 await fileTransferUtility.UploadAsync(uploadRequest);
 
-                // Verificación rápida del objeto subido (opcional, asegura éxito real)
+                // Verificación rápida del objeto subido 
                 var metadata = await _s3Client.GetObjectMetadataAsync(_bucketName, fileName);
                 if (metadata.HttpStatusCode != System.Net.HttpStatusCode.OK)
                     return null;
@@ -177,6 +177,59 @@ namespace APITemplate.Bussines.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error general al eliminar {key}: {ex.Message}");
+                return false;
+            }
+        }
+
+
+        /// <summary>
+        /// Elimina todos los objetos que estén dentro de una carpeta específica en S3.
+        /// </summary>
+        /// <param name="carpetaKey">Ruta de la carpeta en el bucket (por ejemplo: "propiedades/123/")</param>
+        /// <returns>True si se eliminó correctamente, false en caso de error</returns>
+        public async Task<bool> EliminarCarpetaFotosAsync(string carpetaKey)
+        {
+            try
+            {
+                // Listar todos los objetos dentro de la carpeta
+                var listRequest = new ListObjectsV2Request
+                {
+                    BucketName = _bucketName,
+                    Prefix = carpetaKey
+                };
+                var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
+
+                if (listResponse.S3Objects.Count == 0)
+                    return true; // nada que eliminar
+
+                // Preparar la lista de objetos a eliminar
+                var deleteRequest = new DeleteObjectsRequest
+                {
+                    BucketName = _bucketName,
+                    Objects = listResponse.S3Objects.Select(obj => new KeyVersion { Key = obj.Key }).ToList()
+                };
+
+                await _s3Client.DeleteObjectsAsync(deleteRequest);
+
+                // eliminar de Redis si esta cacheando URLs
+                if (_redisDb != null)
+                {
+                    foreach (var obj in listResponse.S3Objects)
+                    {
+                        await _redisDb.KeyDeleteAsync($"s3:url:{obj.Key}");
+                    }
+                }
+
+                return true;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Console.WriteLine($"Error AWS al eliminar carpeta {carpetaKey}: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error general al eliminar carpeta {carpetaKey}: {ex.Message}");
                 return false;
             }
         }

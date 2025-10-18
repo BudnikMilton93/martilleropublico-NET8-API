@@ -1,4 +1,5 @@
-﻿using APITemplate.Data.Interfaces;
+﻿using APITemplate.Bussines.Services;
+using APITemplate.Data.Interfaces;
 using APITemplate.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -45,5 +46,6 @@ namespace APITemplate.Data.Repositories
 
             return dataTable;
         }
+
     }
 }

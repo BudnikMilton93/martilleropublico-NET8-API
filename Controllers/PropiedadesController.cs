@@ -1,4 +1,5 @@
-﻿using APITemplate.Business.DTOs.Barrios;
+﻿using Amazon.S3.Model;
+using APITemplate.Business.DTOs.Barrios;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
 using APITemplate.Business.Interfaces;
@@ -6,6 +7,7 @@ using APITemplate.Bussines.Interfaces;
 using APITemplate.Models;
 using APITemplate.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Numerics;
 
 
@@ -100,6 +102,18 @@ namespace APITemplate.Controllers
                 // Logueá el error si querés, o devolvelo para depurar
                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Elimina una propiedad y todas sus fotos (en BD y AWS S3)
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpDelete("eliminarPropiedad/{id}")]
+        public async Task<IActionResult> EliminarPropiedad(int id)
+        {
+            var propiedadGuardada = await _propiedadesService.DeletePropiedadConFotosAsync(id);
+            return Ok(propiedadGuardada);
         }
     }
 }

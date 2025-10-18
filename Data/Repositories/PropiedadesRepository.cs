@@ -1,4 +1,7 @@
-﻿using APITemplate.Data.Interfaces;
+﻿using Amazon.S3;
+using Amazon.S3.Model;
+using APITemplate.Bussines.Services;
+using APITemplate.Data.Interfaces;
 using APITemplate.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -7,11 +10,14 @@ namespace APITemplate.Data.Repositories
 {
     public class PropiedadesRepository : BaseRepository<PROPIEDADES>, IPropiedadesRepository
     {
+        private readonly S3Service _s3Service;
+
         /// <summary>
         /// Constructor: Hereda de BaseRepository y le pasa el contexto
         /// </summary>
-        public PropiedadesRepository(AppDbContext context) : base(context)
+        public PropiedadesRepository(AppDbContext context, S3Service s3Service) : base(context)
         {
+            _s3Service = s3Service;
         }
 
 
@@ -128,6 +134,48 @@ namespace APITemplate.Data.Repositories
             _context.Propiedades.Add(propiedad);
             await _context.SaveChangesAsync();
             return propiedad; // al guardar, EF Core rellena el Id generado automáticamente
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        public async Task<bool> DeletePropiedadConFotosAsync(int id)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Buscar la propiedad junto con sus fotos
+                var propiedad = await _context.Propiedades
+                    .Include(p => p.Fotos)
+                    .FirstOrDefaultAsync(p => p.Id_propiedad == id);
+
+                if (propiedad == null)
+                    return false;
+
+                bool exito = await _s3Service.EliminarCarpetaFotosAsync($"propiedades/{id}/");
+                if (!exito)
+                    throw new Exception($"No se pudo eliminar la carpeta de fotos de la propiedad {id} en S3");
+
+                // Eliminar registros en base
+                _context.FotosPropiedad.RemoveRange(propiedad.Fotos);
+                _context.Propiedades.Remove(propiedad);
+
+                // Guardar cambios y confirmar transacción
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"Error eliminando propiedad {id}: {ex.Message}");
+                return false;
+            }
         }
     }
 }

@@ -1,4 +1,6 @@
-﻿using APITemplate.Business.DTOs.Barrios;
+﻿using Amazon.S3;
+using Amazon.S3.Model;
+using APITemplate.Business.DTOs.Barrios;
 using APITemplate.Business.DTOs.FotosPropiedad;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
@@ -8,8 +10,10 @@ using APITemplate.Bussines.Interfaces;
 using APITemplate.Data.Interfaces;
 using APITemplate.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace APITemplate.Bussines.Services
 {
@@ -165,7 +169,21 @@ namespace APITemplate.Bussines.Services
 
             return true;
         }
-        #endregion 
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        public async Task<bool> DeletePropiedadConFotosAsync(int id)
+        {
+            var resultado = await _propiedadesRepository.DeletePropiedadConFotosAsync(id);
+
+            return resultado;
+        }
+
+        #endregion
 
 
         #region "Mapeado de datos"
@@ -220,13 +238,11 @@ namespace APITemplate.Bussines.Services
 
                 // Inmueble
                 SuperficieTerreno = superficieTerreno?.ToString("0.##", CultureInfo.InvariantCulture) ?? "0",
-                SuperficieConstruida = superficieConstruida?.ToString("0.##", CultureInfo.InvariantCulture) ?? "0",
-                SuperficieResumen = $"{(superficieConstruida ?? 0)}m² / {(superficieTerreno ?? 0)}m²",
+                SuperficieConstruida = superficieConstruida?.ToString("0.##", CultureInfo.InvariantCulture) ?? "0",                
                 Antiguedad = row["Antiguedad"] != DBNull.Value ? Convert.ToInt32(row["Antiguedad"]) : (int?)null,
                 Habitaciones = habitaciones,
                 Sanitarios = sanitarios,
                 Cocheras = cocheras,
-                AmbientesResumen = $"{(habitaciones ?? 0)} hab, {(sanitarios ?? 0)} baño{(sanitarios > 1 ? "s" : "")}",
 
                 // Vehículo
                 Marca = marca,
@@ -241,6 +257,11 @@ namespace APITemplate.Bussines.Services
                 EsDestacada = esDestacada,
                 FechaAlta = Convert.ToDateTime(row["Fecha_Alta"]),
                 //Tags = tags
+
+                SuperficieResumen = $"{(superficieConstruida ?? 0)}m² / {(superficieTerreno ?? 0)}m²",
+                AmbientesResumen = $"{(habitaciones ?? 0)} hab, {(sanitarios ?? 0)} baño{(sanitarios > 1 ? "s" : "")}",
+                VehiculoResumen = $"{marca ?? "Marca desconocida"} {modelo ?? ""} {fabricacion?.ToString() ?? ""} {kilometraje.ToString()} km".Trim(),
+                AlquilerResumen = $"{serviciosIncluidos.ToString()}".Trim()
             };
         }
 
@@ -360,6 +381,7 @@ namespace APITemplate.Bussines.Services
 
             return propiedadExistente;
         }
+
         #endregion
 
     }
