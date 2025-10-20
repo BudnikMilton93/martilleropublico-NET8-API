@@ -6,13 +6,14 @@ using APITemplate.Data;
 using APITemplate.Data.Interfaces;
 using APITemplate.Data.Repositories;
 using APITemplate.Services;
+using APITemplate.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
@@ -33,16 +34,20 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins("http://localhost:4200") // <-- dirección de tu frontend
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         });
 });
+
 #endregion
+
 
 #region Servicios básicos
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
@@ -110,6 +115,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -117,5 +123,4 @@ app.UseAuthorization();
 app.MapControllers();
 #endregion
 
-app.UseCors("AllowFrontend");
 app.Run();

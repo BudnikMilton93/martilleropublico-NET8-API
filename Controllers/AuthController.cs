@@ -1,14 +1,9 @@
-﻿using APITemplate.Data;
-using APITemplate.Helpers;
+﻿using APITemplate.Business.DTOs.Auth;
 using APITemplate.Models;
+using APITemplate.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
-using APITemplate.Data.Interfaces;
 
 namespace APITemplate.Controllers
 {
@@ -16,75 +11,53 @@ namespace APITemplate.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IConfiguration _config;
-        private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IAuthService _authService;
 
         /// <summary>
-        /// Constructor que recibe inyección de dependencias para configuración y contexto de base de datos
+        /// Constructor que recibe inyección de dependencias del servicio de autenticación
         /// </summary>
-        /// <param name="config"></param>
-        /// <param name="context"></param>
-        public AuthController(IConfiguration config, AppDbContext context, IUsuarioRepository usuarioRepository)
+        public AuthController(IAuthService authService)
         {
-            _config = config;
-            _usuarioRepository = usuarioRepository; // Inyectamos el repositorio
+            _authService = authService;
         }
-
 
         /// <summary>
         /// Autentica a un usuario mediante email y contraseña.
-        /// Verifica que el usuario exista, que la contraseña sea correcta y que el usuario esté activo.
-        /// En caso de éxito, genera y retorna un token JWT para autenticación.
         /// </summary>
         /// <param name="request">Objeto que contiene el email y la contraseña del usuario.</param>
         /// <returns>
-        /// Respuesta HTTP con el token JWT en caso de autenticación exitosa,
-        /// o un código Unauthorized con mensaje si falla la validación.
+        /// Token JWT con refresh token en caso de autenticación exitosa,
+        /// o un código Unauthorized si falla la validación.
         /// </returns>
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] Models.LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             try
             {
                 if (!ModelState.IsValid)
                     return BadRequest(ModelState);
 
-                var user = await _usuarioRepository.GetByEmailAsync(request.Email);
+                var result = await _authService.LoginAsync(request.Email, request.Password);
 
+                if (result == null)
+                    return Unauthorized(new { message = "Credenciales incorrectas o usuario inactivo" });
 
-                if (user == null || !PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
-                    return Unauthorized(new { message = "Credenciales incorrectas" });
-
-                if (!user.IsActive)
-                    return Unauthorized(new { message = "Usuario inactivo" });
-
-                var token = GenerateJwtToken(user);
-                return Ok(new
-                {
-                    token,
-                    user = new
-                    {
-                        id = user.Id,
-                        username = user.Username,
-                        email = user.Email
-                    }
-                });
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                // Log del error
+                // TODO: Log del error (implementar logging)
                 return StatusCode(500, new { message = "Error interno del servidor" });
             }
         }
 
-
         /// <summary>
-        /// Devuelve el usuario logueado
+        /// Obtiene el perfil del usuario autenticado
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Datos del perfil del usuario sin información sensible</returns>
         [HttpGet("perfil")]
-        [Authorize] //Esto hace que requiera un JWT válido
-        public async Task<IActionResult> GetProfileAsync()
+        [Authorize]
+        public async Task<IActionResult> GetProfile()
         {
             try
             {
@@ -93,135 +66,116 @@ namespace APITemplate.Controllers
                 if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int userIdInt))
                     return Unauthorized(new { message = "Token inválido" });
 
-                // Usamos el método del repositorio
-                var user = await _usuarioRepository.GetByIdAsync(userIdInt);
+                var userProfile = await _authService.GetUserProfileAsync(userIdInt);
 
-                if (user == null || !user.IsActive)
+                if (userProfile == null)
                     return NotFound(new { message = "Usuario no encontrado" });
 
-                // Retornamos solo los datos necesarios (sin password)
-                return Ok(new
-                {
-                    id = user.Id,
-                    username = user.Username,
-                    email = user.Email,
-                    nombre = user.Nombre,
-                    apellido = user.Apellido,
-                    idRol = user.Id_Rol,
-                    createdAt = user.CreatedAt
-                });
+                return Ok(userProfile);
             }
             catch (Exception ex)
             {
+                // TODO: Log del error
                 return StatusCode(500, new { message = "Error interno del servidor" });
             }
-
         }
-
 
         /// <summary>
         /// Registra un nuevo usuario en el sistema.
         /// </summary>
-        /// <param name="request">
-        /// Objeto <see cref="USUARIOS"/> que contiene:
-        /// - Username (nombre de usuario)
-        /// - Email (correo electrónico)
-        /// - FullName (nombre completo)
-        /// - PasswordHash (contraseña en texto plano para ser hasheada)
-        /// </param>
+        /// <param name="request">DTO con los datos del nuevo usuario</param>
         /// <returns>
-        /// Retorna un código 200 (OK) si el usuario fue registrado exitosamente.
-        /// Retorna 400 (BadRequest) si los datos enviados no son válidos.
-        /// Retorna 409 (Conflict) si ya existe un usuario con el mismo email.
+        /// Código 200 (OK) si el usuario fue registrado exitosamente.
+        /// Código 400 (BadRequest) si los datos no son válidos.
+        /// Código 409 (Conflict) si ya existe un usuario con el mismo email o username.
         /// </returns>
-        /// <remarks>
-        /// La contraseña recibida se encripta antes de guardarse en la base de datos.
-        /// La fecha de creación se almacena en formato UTC.
-        /// </remarks>
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] USUARIOS request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequestDTO request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            // Verificar si ya existe username o email
-            if (await _usuarioRepository.EmailExistsAsync(request.Email))
-                return Conflict(new { message = "Ya existe un usuario con este email." });
-
-            if (await _usuarioRepository.UsernameExistsAsync(request.Username))
-                return Conflict(new { message = "Ya existe un usuario con este username." });
-
-
-            // Hashear la contraseña
-            string hashedPassword = PasswordHasher.HashPassword(request.PasswordHash);
-
-            var user = new USUARIOS
+            try
             {
-                Username = request.Username,
-                Email = request.Email,
-                PasswordHash = hashedPassword,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                Nombre = request.Nombre,
-                Apellido = request.Apellido,
-                Id_Rol = request.Id_Rol
-            };
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
 
-            var createdUser = await _usuarioRepository.CreateAsync(user);
-            
-            return Ok(new
+                // Verificar duplicados antes de intentar registrar
+                if (await _authService.EmailExistsAsync(request.Email))
+                    return Conflict(new { message = "Ya existe un usuario con este email" });
+
+                if (await _authService.UsernameExistsAsync(request.Username))
+                    return Conflict(new { message = "Ya existe un usuario con este username" });
+
+                var userId = await _authService.RegisterAsync(request);
+
+                if (userId == null)
+                    return StatusCode(500, new { message = "Error al crear el usuario" });
+
+                return Ok(new
+                {
+                    message = "Usuario registrado correctamente",
+                    userId
+                });
+            }
+            catch (Exception ex)
             {
-                message = "Usuario registrado correctamente",
-                userId = createdUser.Id
-            });
+                // TODO: Log del error
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
         }
 
+        /// <summary>
+        /// Refresca un access token usando un refresh token válido
+        /// </summary>
+        /// <param name="request">DTO con access token y refresh token</param>
+        /// <returns>Nuevos tokens si el refresh es válido</returns>
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDTO request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _authService.RefreshTokenAsync(request.AccessToken, request.RefreshToken);
+
+                if (result == null)
+                    return Unauthorized(new { message = "Refresh token inválido o expirado" });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                // TODO: Log del error
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
+        }
 
         /// <summary>
-        /// Genera el token JWT con las configuraciones y claims necesarios
+        /// Cierra sesión revocando el refresh token del usuario
         /// </summary>
-        /// <param name="user"></param>
-        /// <returns></returns>
-        private string GenerateJwtToken(USUARIOS user)
+        /// <returns>Confirmación de logout</returns>
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout()
         {
-            // Leer la sección de configuración JwtSettings desde appsettings.json
-            var jwtSettings = _config.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"];
-
-            if (string.IsNullOrEmpty(secretKey))
-                throw new InvalidOperationException("JWT SecretKey no configurada");
-
-            // Crear la clave simétrica usando el secreto para firmar el token
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-
-            // Definir las credenciales de firma usando algoritmo HMAC SHA256
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            // Definir los claims que se incluyen dentro del token
-            var claims = new[]
+            try
             {
-                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                    new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                    new Claim(JwtRegisteredClaimNames.Name, user.Username),
-                    new Claim("role", user.Id_Rol.ToString() ?? "user"),
-                    new Claim(JwtRegisteredClaimNames.Iat,
-                        new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
-            };
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            var expires = DateTime.UtcNow.AddMinutes(
-            Convert.ToDouble(jwtSettings["ExpiresInMinutes"] ?? "60"));
+                if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out int userIdInt))
+                    return Unauthorized(new { message = "Token inválido" });
 
-            // Crear el token JWT con todos los parámetros definidos
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: expires,
-                signingCredentials: creds
-            );
+                var result = await _authService.RevokeRefreshTokenAsync(userIdInt);
 
-            // Serializar el token a string para enviarlo al cliente
-            return new JwtSecurityTokenHandler().WriteToken(token);
+                if (!result)
+                    return StatusCode(500, new { message = "Error al cerrar sesión" });
+
+                return Ok(new { message = "Sesión cerrada correctamente" });
+            }
+            catch (Exception ex)
+            {
+                // TODO: Log del error
+                return StatusCode(500, new { message = "Error interno del servidor" });
+            }
         }
     }
 }

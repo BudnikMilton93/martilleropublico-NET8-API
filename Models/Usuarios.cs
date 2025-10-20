@@ -30,5 +30,10 @@ namespace APITemplate.Models
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public string? RefreshToken { get; set; }
+        
+        [Column(TypeName = "datetime2")]
+        public DateTime? RefreshTokenExpiryTime { get; set; }
     }
 }
