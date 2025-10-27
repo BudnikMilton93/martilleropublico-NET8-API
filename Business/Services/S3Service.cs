@@ -107,15 +107,15 @@ namespace APITemplate.Bussines.Services
             try
             {
                 // Intentar obtener desde Redis primero
-                if (_redisDb != null)
-                {
-                    await _redisDb.KeyDeleteAsync(cacheKey);
-                    cachedUrl = await _redisDb.StringGetAsync(cacheKey);
-                    if (!string.IsNullOrEmpty(cachedUrl))
-                    {
-                        return cachedUrl;
-                    }
-                }
+                //if (_redisDb != null)
+                //{
+                //    await _redisDb.KeyDeleteAsync(cacheKey);
+                //    cachedUrl = await _redisDb.StringGetAsync(cacheKey);
+                //    if (!string.IsNullOrEmpty(cachedUrl))
+                //    {
+                //        return cachedUrl;
+                //    }
+                //}
 
                 // Generar URL pre-firmada (siempre, porque el bucket es privado)
                 var preSignedRequest = new GetPreSignedUrlRequest
@@ -128,10 +128,10 @@ namespace APITemplate.Bussines.Services
                 string url = _s3Client.GetPreSignedURL(preSignedRequest);
 
                 // Guardar en Redis con expiración de 1 hora
-                if (_redisDb != null && !string.IsNullOrEmpty(url))
-                {
-                    await _redisDb.StringSetAsync(cacheKey, url, TimeSpan.FromHours(1));
-                }
+                //if (_redisDb != null && !string.IsNullOrEmpty(url))
+                //{
+                //    await _redisDb.StringSetAsync(cacheKey, url, TimeSpan.FromHours(1));
+                //}
 
                 return url;
             }

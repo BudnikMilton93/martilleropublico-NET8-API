@@ -1,5 +1,6 @@
 ﻿using APITemplate.Services;
 using Microsoft.AspNetCore.Mvc;
+using StackExchange.Redis;
 
 
 namespace APITemplate.Controllers
@@ -9,6 +10,7 @@ namespace APITemplate.Controllers
     public class CacheTestController : ControllerBase
     {
         private readonly ICacheService _cacheService;
+        private readonly IConnectionMultiplexer _redis;
 
         /// <summary>
         /// Constructor del controlador <c>CacheTestController</c>.
@@ -19,9 +21,10 @@ namespace APITemplate.Controllers
         /// Servicio de caché que implementa las operaciones de guardado, obtención y eliminación
         /// de datos de forma asíncrona.
         /// </param>
-        public CacheTestController(ICacheService cacheService)
+        public CacheTestController(ICacheService cacheService, IConnectionMultiplexer redis)
         {
             _cacheService = cacheService;
+            _redis= redis;
         }
 
 
@@ -66,6 +69,22 @@ namespace APITemplate.Controllers
                 return NotFound(new { message = "No hay valor en caché" });
 
             return Ok(new { cachedValue = value });
+        }
+
+        [HttpGet("redis")]
+        public IActionResult TestRedis()
+        {
+            try
+            {
+                var db = _redis.GetDatabase();
+                db.StringSet("ping", "pong");
+                var value = db.StringGet("ping");
+                return Ok(new { RedisResponse = value.ToString() });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = ex.Message });
+            }
         }
     }
 }
