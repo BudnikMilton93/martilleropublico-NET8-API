@@ -36,7 +36,7 @@ Incluye autenticación mediante **JWT**, cache con **Redis**, y despliegue autom
 ---
 
 ## 📂 Estructura del Proyecto
-MartilleroPublico.API/
+<pre> ```MartilleroPublico.API/
 │
 ├── Bussines/
 │   └── DTOs/
@@ -92,7 +92,7 @@ MartilleroPublico.API/
 ├── Program.cs
 ├── Dockerfile
 └── docker-compose.yml
-
+``` </pre>
 ---
 
 ## 🐳 Cómo ejecutar la app localmente
