@@ -38,20 +38,54 @@ Incluye autenticación mediante **JWT**, cache con **Redis**, y despliegue autom
 ## 📂 Estructura del Proyecto
 MartilleroPublico.API/
 │
+├── Bussines/
+│   └── DTOs/
+│   └── Interfaces/
+│       └── IFotosPropiedadService.cs
+│       └── IPropiedadesService.cs
+│   └── Services/
+│       └── AuthService.cs
+│       └── FotosPropiedadService.cs
+│       └── JwtService.cs
+│       └── PropiedadesService.cs
+│       └── S3Service.cs
+│
 ├── Controllers/
 │ └── AuthController.cs
-│ └── ContratosController.cs
+│ └── CacheTestController.cs
+│ └── PropiedadesController.cs
+
+├── Data/
+│   └── Interfaces/
+│       └── IBaseRepository.cs
+│       └── IFotosPropiedadRepository.cs
+│       └── IPropiedadesRepository.cs
+│       └── IUsuarioRepository.cs
+│   └── Repositories/
+│       └── IBaseRepository.cs
+│       └── IFotosPropiedadRepository.cs
+│       └── IPropiedadesRepository.cs
+│       └── IUsuarioRepository.cs
+│ └── AppDbContext.cs
 │
-├── Services/
-│ └── AuthService.cs
-│ └── ContratosService.cs
-│
-├── Repositories/
-│ └── ContratoRepository.cs
+├── Helpers/
+│ └── CacheService.cs
+│ └── DbConnectionHelper.cs
+│ └── ICacheService.cs
+│ └── PasswordHasher.cs
+│ └── RefreshToken.cs
 │
 ├── Models/
-│ └── Contrato.cs
-│ └── Usuario.cs
+│ └── Modelos.cs
+│
+├── Services/
+│   └── Interfaces/
+│       └── IAuthService.cs
+│       └── IJwtService.cs
+
+├── Test/
+│   └── Helpers/
+│       └── PasswordHasherTests.cs
 │
 ├── appsettings.json
 ├── appsettings.Development.json
