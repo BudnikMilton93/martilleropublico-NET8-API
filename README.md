@@ -36,9 +36,9 @@ Incluye autenticación mediante **JWT**, cache con **Redis**, y despliegue autom
 ---
 
 ## 📂 Estructura del Proyecto
-- MartilleroPublico.API/
+MartilleroPublico.API/
 │
--├── Bussines/
+├── Bussines/
 │   └── DTOs/
 │   └── Interfaces/
 │       └── IFotosPropiedadService.cs
