@@ -109,13 +109,14 @@ Esto levantará:
 
 ## 🧰 Variables de entorno
 
+<pre>
 ASPNETCORE_ENVIRONMENT=Development
 ConnectionStrings__DefaultConnection="Server=tcp:martilleropublico.database.windows.net,1433;Initial Catalog=MartilleroDB;Persist Security Info=False;User ID=admin;Password=********;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 Redis__ConnectionString="martillero-redis.redis.cache.windows.net:6380,password=********,ssl=True,abortConnect=False"
 Jwt__Key="clave-secreta-para-jwt"
 Jwt__Issuer="MartilleroPublicoAPI"
 Jwt__Audience="MartilleroPublicoClient"
-
+</pre>
 ---
 
 ## 🔑 Autenticación
