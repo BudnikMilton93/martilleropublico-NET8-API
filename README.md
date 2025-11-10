@@ -20,8 +20,6 @@ Incluye autenticación mediante **JWT**, cache con **Redis**, y despliegue autom
 | **Swagger / OpenAPI** | Documentación interactiva de endpoints |
 | **Docker + Azure Container Registry (ACR)** | Contenerización y almacenamiento de imágenes |
 | **Azure App Service** | Ejecución del contenedor en producción |
-| **Bitbucket + Azure DevOps** | CI/CD y control de versiones |
-| **xUnit / MSTest / NUnit** | Frameworks para testing unitario |
 
 ---
 
@@ -54,7 +52,7 @@ Incluye autenticación mediante **JWT**, cache con **Redis**, y despliegue autom
 │ └── AuthController.cs
 │ └── CacheTestController.cs
 │ └── PropiedadesController.cs
-
+│
 ├── Data/
 │   └── Interfaces/
 │       └── IBaseRepository.cs
@@ -82,7 +80,7 @@ Incluye autenticación mediante **JWT**, cache con **Redis**, y despliegue autom
 │   └── Interfaces/
 │       └── IAuthService.cs
 │       └── IJwtService.cs
-
+│
 ├── Test/
 │   └── Helpers/
 │       └── PasswordHasherTests.cs
@@ -153,7 +151,6 @@ docker push martilleroacr2025.azurecr.io/martilleropublico-api:latest
   - Redis Cache: reducir tiempos de respuesta y mejorar eficiencia.
   - Entity Framework Core: por integración nativa con .NET y facilidad de mantenimiento.
   - Docker: para asegurar portabilidad entre entornos.
-  - CI/CD Azure DevOps: para automatizar el ciclo de vida de desarrollo y despliegue.
   - HTTPS + JWT: para garantizar seguridad en las comunicaciones y autenticación.
 
 ---
@@ -165,3 +162,5 @@ docker push martilleroacr2025.azurecr.io/martilleropublico-api:latest
 - Añadir logging estructurado con Serilog o Application Insights.
 - Integrar seed data para pruebas locales.
 - Incluir test de integración y E2E con escenarios reales.
+- Bitbucket + Azure DevOps: CI/CD y control de versiones.
+- Frameworks para testing unitario: xUnit / MSTest / NUnit. 	
