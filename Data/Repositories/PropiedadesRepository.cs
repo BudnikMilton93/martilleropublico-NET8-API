@@ -1,6 +1,4 @@
-﻿using Amazon.S3;
-using Amazon.S3.Model;
-using APITemplate.Bussines.Services;
+﻿using APITemplate.Bussines.Services;
 using APITemplate.Data.Interfaces;
 using APITemplate.Models;
 using Microsoft.EntityFrameworkCore;
@@ -156,9 +154,12 @@ namespace APITemplate.Data.Repositories
                 if (propiedad == null)
                     return false;
 
-                bool exito = await _s3Service.EliminarCarpetaFotosAsync($"propiedades/{id}/");
-                if (!exito)
-                    throw new Exception($"No se pudo eliminar la carpeta de fotos de la propiedad {id} en S3");
+                foreach (var foto in propiedad.Fotos)
+                {
+                    var exito = await _s3Service.EliminarFotoAsync(foto.Ruta_archivo);
+                    if (!exito)
+                        throw new Exception($"No se pudo eliminar la foto {foto.Ruta_archivo} en Cloudinary");
+                }
 
                 // Eliminar registros en base
                 _context.FotosPropiedad.RemoveRange(propiedad.Fotos);

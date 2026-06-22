@@ -19,7 +19,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 #region Ambientes
-// Configuración unificada para todos los entornos
+// ConfiguraciÃ³n unificada para todos los entornos
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -43,13 +43,30 @@ CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 
 #region CORS
+var allowedOrigins = builder.Configuration.GetSection("Frontend:AllowedOrigins").Get<string[]>();
+var allowedOriginsCsv = builder.Configuration["Frontend:AllowedOriginsCsv"];
+
+if (!string.IsNullOrWhiteSpace(allowedOriginsCsv))
+{
+    allowedOrigins = allowedOriginsCsv
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .ToArray();
+}
+
+allowedOrigins ??=
+[
+    "https://www.zmpropiedades.com",
+    "http://localhost:4200"
+];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy =>
         {
             policy
-                .WithOrigins("https://www.zmpropiedades.com", "http://localhost:4200") // <-- dirección de tu frontend
+                .WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -59,7 +76,7 @@ builder.Services.AddCors(options =>
 #endregion
 
 
-#region Servicios básicos
+#region Servicios bï¿½sicos
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -67,31 +84,35 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
-
-builder.Services.AddSingleton<ICacheService, CacheService>();
 #endregion
 
 #region Redis
+var redisConnectionString =
+    builder.Configuration.GetConnectionString("Redis")
+    ?? builder.Configuration["Redis:ConnectionString"];
 
-try
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
 {
-    // Configuración de Redis
-    var redisConfig = new ConfigurationOptions
+    try
     {
-        EndPoints = { "martillero-redis.redis.cache.windows.net:6380" },
-        Password = builder.Configuration["Redis:Password"], // la tomamos desde variables de entorno
-        Ssl = true,
-        AbortOnConnectFail = false
-    };
-
-    // Registrar Redis como Singleton
-    builder.Services.AddSingleton<IConnectionMultiplexer>(
-        ConnectionMultiplexer.Connect(redisConfig)
-    );
+        builder.Services.AddSingleton<IConnectionMultiplexer>(
+            ConnectionMultiplexer.Connect(redisConnectionString)
+        );
+        builder.Services.AddSingleton<ICacheService, CacheService>();
+        Console.WriteLine("Redis habilitado para cache distribuida.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Redis no disponible, usando cache en memoria local: " + ex.Message);
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSingleton<ICacheService, InMemoryCacheService>();
+    }
 }
-catch (Exception ex)
+else
 {
-    Console.WriteLine("Redis no disponible: " + ex.Message);
+    Console.WriteLine("Redis no configurado, usando cache en memoria local.");
+    builder.Services.AddMemoryCache();
+    builder.Services.AddSingleton<ICacheService, InMemoryCacheService>();
 }
 
 #endregion 
@@ -126,7 +147,7 @@ builder.Services.AddAuthentication(options =>
 #endregion
 
 
-#region Conexión a base de datos y repositorios
+#region ConexiÃ³n a base de datos y repositorios
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));

@@ -136,12 +136,8 @@ namespace APITemplate.Business.Services
                 {
                     try
                     {
-                        // Eliminar de S3
-                        var key = foto.Ruta_archivo.Contains("amazonaws.com")
-                            ? foto.Ruta_archivo.Substring(foto.Ruta_archivo.IndexOf(".com/") + 5)
-                            : foto.Ruta_archivo;
-
-                        await _s3Service.EliminarFotoAsync(key);
+                        // Eliminar del proveedor de imágenes actual (Cloudinary)
+                        await _s3Service.EliminarFotoAsync(foto.Ruta_archivo);
 
                         // Eliminar de la base
                         await _fotosRepository.DeleteAsync(foto.Id_foto);

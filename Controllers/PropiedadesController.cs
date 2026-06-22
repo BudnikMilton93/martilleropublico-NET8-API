@@ -1,5 +1,4 @@
-﻿using Amazon.S3.Model;
-using APITemplate.Business.DTOs.Barrios;
+﻿using APITemplate.Business.DTOs.Barrios;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
 using APITemplate.Business.Interfaces;

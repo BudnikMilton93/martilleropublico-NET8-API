@@ -1,6 +1,4 @@
-﻿using Amazon.S3;
-using Amazon.S3.Model;
-using APITemplate.Business.DTOs.Barrios;
+﻿using APITemplate.Business.DTOs.Barrios;
 using APITemplate.Business.DTOs.FotosPropiedad;
 using APITemplate.Business.DTOs.Propiedades;
 using APITemplate.Business.DTOs.TiposPropiedad;
@@ -82,9 +80,7 @@ namespace APITemplate.Bussines.Services
                 // Obtener todas las URLs públicas en paralelo SOLO para esas fotos
                 var tareas = fotos.Select(f =>
                 {
-                    // Si f.RutaArchivo viene con URL completa, extraemos la key
-                    string key = f.RutaArchivo.Replace("https://zm-propiedades-fotos.s3.amazonaws.com/", "");
-                    return _s3Service.ObtenerUrlPublicaAsync(key);
+                    return _s3Service.ObtenerUrlPublicaAsync(f.RutaArchivo);
                 }).ToList();
                 var urls = await Task.WhenAll(tareas);
 

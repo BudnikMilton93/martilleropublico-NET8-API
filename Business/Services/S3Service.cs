@@ -1,283 +1,205 @@
-﻿using Amazon;
-using Amazon.S3;
-using Amazon.S3.Model;
-using Amazon.S3.Transfer;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using StackExchange.Redis;
+using System.Text.RegularExpressions;
 
 namespace APITemplate.Bussines.Services
 {
     public class S3Service
     {
-        private readonly string _bucketName;
-        private readonly IAmazonS3 _s3Client;
+        private readonly Cloudinary _cloudinary;
         private readonly IDatabase? _redisDb;
 
         public S3Service(IConfiguration configuration, IConnectionMultiplexer? redis = null)
         {
-            var awsAccessKey = configuration["AWS:AccessKey"];
-            var awsSecretKey = configuration["AWS:SecretKey"];
-            var region = RegionEndpoint.GetBySystemName(configuration["AWS:Region"]);
-            _bucketName = configuration["AWS:BucketName"];
+            var cloudName = configuration["Cloudinary:CloudName"];
+            var apiKey = configuration["Cloudinary:ApiKey"];
+            var apiSecret = configuration["Cloudinary:ApiSecret"];
 
-            _s3Client = new AmazonS3Client(awsAccessKey, awsSecretKey, region);
-            
-            // Si Redis está disponible, obtenemos una instancia de base
+            if (string.IsNullOrWhiteSpace(cloudName) ||
+                string.IsNullOrWhiteSpace(apiKey) ||
+                string.IsNullOrWhiteSpace(apiSecret))
+            {
+                throw new InvalidOperationException("Cloudinary no está configurado. Verificá Cloudinary:CloudName, Cloudinary:ApiKey y Cloudinary:ApiSecret.");
+            }
+
+            _cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret));
+            _cloudinary.Api.Secure = true;
+
             _redisDb = redis?.GetDatabase();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="fileStream"></param>
-        /// <param name="fileName"></param>
-        /// <param name="contentType"></param>
-        /// <returns></returns>
         public async Task<string?> SubirFotosAsync(Stream fileStream, string fileName, string contentType)
         {
             try
             {
-                var fileTransferUtility = new TransferUtility(_s3Client);
+                var extension = Path.GetExtension(fileName);
+                var publicId = string.IsNullOrWhiteSpace(extension)
+                    ? fileName
+                    : fileName[..^extension.Length];
 
-                var uploadRequest = new TransferUtilityUploadRequest
+                var uploadRequest = new ImageUploadParams
                 {
-                    InputStream = fileStream,
-                    Key = fileName,
-                    BucketName = _bucketName,
-                    ContentType = contentType,
-                    CannedACL = S3CannedACL.Private // fotos privadas
+                    File = new FileDescription(fileName, fileStream),
+                    PublicId = publicId,
+                    UseFilename = false,
+                    UniqueFilename = false,
+                    Overwrite = true,
+                    Invalidate = true
                 };
 
-                await fileTransferUtility.UploadAsync(uploadRequest);
-
-                // Verificación rápida del objeto subido 
-                var metadata = await _s3Client.GetObjectMetadataAsync(_bucketName, fileName);
-                if (metadata.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                var response = await _cloudinary.UploadAsync(uploadRequest);
+                if (response.StatusCode is not System.Net.HttpStatusCode.OK ||
+                    string.IsNullOrWhiteSpace(response.SecureUrl?.ToString()))
+                {
                     return null;
+                }
 
-                // Retornamos la ruta final del archivo
-                return $"https://{_bucketName}.s3.amazonaws.com/{fileName}";
-            }
-            catch (AmazonS3Exception ex)
-            {
-                Console.WriteLine($"Error AWS S3 al subir {fileName}: {ex.Message}");
-                return null; // garantiza que el servicio de fotos no guarde en DB
+                return response.SecureUrl.ToString();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error general al subir {fileName}: {ex.Message}");
+                Console.WriteLine($"Error Cloudinary al subir {fileName}: {ex.Message}");
                 return null;
             }
         }
 
-
-        /// <summary>
-        /// Obtiene la URL pública o pre-firmada de un archivo almacenado en Amazon S3,
-        /// utilizando Redis como caché para evitar consultas repetidas.
-        /// </summary>
-        /// <param name="key">
-        /// Nombre de archivo (clave) dentro del bucket de S3. 
-        /// Generalmente coincide con la ruta relativa del archivo subido.
-        /// </param>
-        /// <returns>
-        /// Devuelve la URL de acceso al archivo:
-        /// <list type="bullet">
-        /// <item>
-        /// <description>Si el bucket o el objeto son públicos, devuelve la URL pública directa.</description>
-        /// </item>
-        /// <item>
-        /// <description>Si el objeto es privado, genera y devuelve una URL pre-firmada válida por 1 hora.</description>
-        /// </item>
-        /// <item>
-        /// <description>Si el archivo no existe o ocurre un error, devuelve una cadena vacía.</description>
-        /// </item>
-        /// </list>
-        /// </returns>
-        /// <remarks>
-        /// Este método realiza una verificación inicial con <see cref="GetObjectMetadataAsync"/>.
-        /// Si el objeto no tiene acceso público, genera una URL pre-firmada usando <see cref="GetPreSignedUrlRequest"/>.
-        /// </remarks>
         public async Task<string> ObtenerUrlPublicaAsync(string key)
         {
-            if (string.IsNullOrEmpty(key))
+            if (string.IsNullOrWhiteSpace(key))
                 return string.Empty;
 
-            string cacheKey = $"s3:url:{key}";
-            string cachedUrl = null;
+            if (Uri.TryCreate(key, UriKind.Absolute, out _))
+                return key;
+
+            var cacheKey = $"img:url:{key}";
 
             try
             {
-                // Intentar obtener desde Redis primero
-                //if (_redisDb != null)
-                //{
-                //    await _redisDb.KeyDeleteAsync(cacheKey);
-                //    cachedUrl = await _redisDb.StringGetAsync(cacheKey);
-                //    if (!string.IsNullOrEmpty(cachedUrl))
-                //    {
-                //        return cachedUrl;
-                //    }
-                //}
-
-                // Generar URL pre-firmada (siempre, porque el bucket es privado)
-                var preSignedRequest = new GetPreSignedUrlRequest
+                if (_redisDb != null)
                 {
-                    BucketName = _bucketName,
-                    Key = key,
-                    Expires = DateTime.UtcNow.AddHours(1)
-                };
+                    var cached = await _redisDb.StringGetAsync(cacheKey);
+                    if (!string.IsNullOrWhiteSpace(cached))
+                        return cached!;
+                }
 
-                string url = _s3Client.GetPreSignedURL(preSignedRequest);
+                var url = _cloudinary.Api.UrlImgUp.Secure(true).BuildUrl(key);
 
-                // Guardar en Redis con expiración de 1 hora
-                //if (_redisDb != null && !string.IsNullOrEmpty(url))
-                //{
-                //    await _redisDb.StringSetAsync(cacheKey, url, TimeSpan.FromHours(1));
-                //}
+                if (_redisDb != null && !string.IsNullOrWhiteSpace(url))
+                    await _redisDb.StringSetAsync(cacheKey, url, TimeSpan.FromHours(1));
 
                 return url;
             }
-            catch (AmazonS3Exception ex)
-            {
-                Console.WriteLine($"Error al generar URL pre-firmada de {key}: {ex.Message}");
-                return string.Empty;
-            }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error general al generar URL de S3 para {key}: {ex.Message}");
+                Console.WriteLine($"Error generando URL de Cloudinary para {key}: {ex.Message}");
                 return string.Empty;
             }
         }
 
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="key"></param>
-        /// <returns></returns>
         public async Task<bool> EliminarFotoAsync(string key)
         {
             try
             {
-                await _s3Client.DeleteObjectAsync(new DeleteObjectRequest
+                var publicId = ExtraerPublicId(key);
+                if (string.IsNullOrWhiteSpace(publicId))
+                    return false;
+
+                var response = await _cloudinary.DestroyAsync(new DeletionParams(publicId)
                 {
-                    BucketName = _bucketName,
-                    Key = key
+                    ResourceType = ResourceType.Image,
+                    Type = "upload",
+                    Invalidate = true
                 });
 
-                // También podrías eliminar del cache Redis
-                if (_redisDb != null)
-                    await _redisDb.KeyDeleteAsync($"s3:url:{key}");
-
-                return true;
-            }
-            catch (AmazonS3Exception ex)
-            {
-                Console.WriteLine($"Error AWS al eliminar {key}: {ex.Message}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error general al eliminar {key}: {ex.Message}");
-                return false;
-            }
-        }
-
-
-        /// <summary>
-        /// Elimina todos los objetos que estén dentro de una carpeta específica en S3.
-        /// </summary>
-        /// <param name="carpetaKey">Ruta de la carpeta en el bucket (por ejemplo: "propiedades/123/")</param>
-        /// <returns>True si se eliminó correctamente, false en caso de error</returns>
-        public async Task<bool> EliminarCarpetaFotosAsync(string carpetaKey)
-        {
-            try
-            {
-                // Listar todos los objetos dentro de la carpeta
-                var listRequest = new ListObjectsV2Request
+                if (!string.Equals(response.Result, "ok", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(response.Result, "not found", StringComparison.OrdinalIgnoreCase))
                 {
-                    BucketName = _bucketName,
-                    Prefix = carpetaKey
-                };
-                var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
-
-                if (listResponse.S3Objects.Count == 0)
-                    return true; // nada que eliminar
-
-                // Preparar la lista de objetos a eliminar
-                var deleteRequest = new DeleteObjectsRequest
-                {
-                    BucketName = _bucketName,
-                    Objects = listResponse.S3Objects.Select(obj => new KeyVersion { Key = obj.Key }).ToList()
-                };
-
-                await _s3Client.DeleteObjectsAsync(deleteRequest);
-
-                // eliminar de Redis si esta cacheando URLs
-                if (_redisDb != null)
-                {
-                    foreach (var obj in listResponse.S3Objects)
-                    {
-                        await _redisDb.KeyDeleteAsync($"s3:url:{obj.Key}");
-                    }
+                    return false;
                 }
 
+                if (_redisDb != null)
+                    await _redisDb.KeyDeleteAsync($"img:url:{publicId}");
+
                 return true;
-            }
-            catch (AmazonS3Exception ex)
-            {
-                Console.WriteLine($"Error AWS al eliminar carpeta {carpetaKey}: {ex.Message}");
-                return false;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error general al eliminar carpeta {carpetaKey}: {ex.Message}");
+                Console.WriteLine($"Error eliminando en Cloudinary {key}: {ex.Message}");
                 return false;
             }
         }
 
+        public async Task<bool> EliminarCarpetaFotosAsync(string carpetaKey)
+        {
+            // Compatibilidad con código legado: la eliminación real se hace por foto.
+            await Task.CompletedTask;
+            return true;
+        }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
         public async Task<bool> ProbarConexionAsync()
         {
             try
             {
-                // Creamos un archivo temporal en memoria
-                var testKey = "test-connection.txt";
-                var testContent = "Conexión exitosa con S3 desde API .NET";
+                var testPublicId = $"healthcheck/{Guid.NewGuid()}";
+                var testContent = "Conexión exitosa con Cloudinary desde API .NET";
                 using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(testContent));
 
-                // Subimos el archivo al bucket
-                var putRequest = new PutObjectRequest
+                var upload = await _cloudinary.UploadAsync(new RawUploadParams
                 {
-                    BucketName = _bucketName,
-                    Key = testKey,
-                    InputStream = stream,
-                    ContentType = "text/plain"
-                };
+                    File = new FileDescription("healthcheck.txt", stream),
+                    PublicId = testPublicId,
+                    UseFilename = false,
+                    UniqueFilename = false,
+                    Overwrite = true
+                });
 
-                await _s3Client.PutObjectAsync(putRequest);
+                if (upload.StatusCode is not System.Net.HttpStatusCode.OK)
+                    return false;
 
-                // Verificamos que el archivo exista
-                var response = await _s3Client.GetObjectMetadataAsync(_bucketName, testKey);
-                bool existe = response.HttpStatusCode == System.Net.HttpStatusCode.OK;
+                await _cloudinary.DestroyAsync(new DeletionParams(testPublicId)
+                {
+                    ResourceType = ResourceType.Raw,
+                    Type = "upload",
+                    Invalidate = true
+                });
 
-                // Eliminamos el archivo de prueba
-                await _s3Client.DeleteObjectAsync(_bucketName, testKey);
-
-                return existe;
-            }
-            catch (AmazonS3Exception ex)
-            {
-                Console.WriteLine($"Error AWS: {ex.Message}");
-                return false;
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error general: {ex.Message}");
+                Console.WriteLine($"Error Cloudinary: {ex.Message}");
                 return false;
             }
+        }
+
+        private static string ExtraerPublicId(string keyOrUrl)
+        {
+            if (string.IsNullOrWhiteSpace(keyOrUrl))
+                return string.Empty;
+
+            if (!Uri.TryCreate(keyOrUrl, UriKind.Absolute, out var uri))
+                return QuitarExtension(keyOrUrl.TrimStart('/'));
+
+            var path = uri.AbsolutePath.TrimStart('/');
+            var uploadIndex = path.IndexOf("/upload/", StringComparison.OrdinalIgnoreCase);
+            if (uploadIndex >= 0)
+                path = path[(uploadIndex + "/upload/".Length)..];
+
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (segments.Count > 0 && Regex.IsMatch(segments[0], @"^v\d+$", RegexOptions.IgnoreCase))
+                segments.RemoveAt(0);
+
+            if (segments.Count == 0)
+                return string.Empty;
+
+            return QuitarExtension(string.Join('/', segments));
+        }
+
+        private static string QuitarExtension(string input)
+        {
+            var extension = Path.GetExtension(input);
+            return string.IsNullOrWhiteSpace(extension) ? input : input[..^extension.Length];
         }
     }
 }
